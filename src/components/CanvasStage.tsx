@@ -185,7 +185,6 @@ function StickerNode({ sticker, selected, onSelect, onChange, onDelete }: {
   onDelete: () => void
 }) {
   const [image] = useImage(sticker.kind === 'image' ? sticker.value : '')
-  const common = { rotation:sticker.rotation, opacity:sticker.opacity }
   return <Group
     x={sticker.x}
     y={sticker.y}
@@ -193,11 +192,13 @@ function StickerNode({ sticker, selected, onSelect, onChange, onDelete }: {
     onClick={onSelect}
     onTap={onSelect}
     onDragStart={onSelect}
-    onDragEnd={(event) => onChange({ x:event.target.x(), y:event.target.y() })}
-  >{sticker.kind === 'image'
-    ? <KonvaImage {...common} image={image} width={sticker.size} height={sticker.size} offsetX={sticker.size / 2} offsetY={sticker.size / 2}/>
-    : <Text {...common} text={sticker.value} fontSize={sticker.size} offsetX={sticker.size / 2} offsetY={sticker.size / 2}/>
-  }{selected && <>
+    onDragEnd={(event) => onChange({ x:event.currentTarget.x(), y:event.currentTarget.y() })}
+  ><Group rotation={sticker.rotation} opacity={sticker.opacity}>
+    {sticker.kind === 'image'
+      ? <KonvaImage image={image} x={sticker.size / -2} y={sticker.size / -2} width={sticker.size} height={sticker.size}/>
+      : <Text ref={(node) => { if (node) { node.offsetX(node.width() / 2); node.offsetY(node.height() / 2) } }} text={sticker.value} fontSize={sticker.size}/>
+    }
+  </Group>{selected && <>
     <Circle radius={sticker.size * .62} stroke="#7c3aed" dash={[6, 5]} listening={false}/>
     <Group
       x={sticker.size * .44}
