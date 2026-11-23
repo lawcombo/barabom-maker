@@ -15,8 +15,8 @@ export const studioFonts = [
   { family: 'Poor Story', label: '푸어스토리' },
   { family: 'Nanum Pen Script', label: '나눔 펜' },
   { family: 'Nanum Brush Script', label: '나눔 붓글씨' },
-  { family: 'Arial', label: 'Arial', sample: 'Barabom Aa' },
-  { family: 'Georgia', label: 'Georgia', sample: 'Barabom Aa' },
+  { family: 'Arial', label: 'Arial', sample: 'Aa Bb' },
+  { family: 'Georgia', label: 'Georgia', sample: 'Aa Bb' },
 ]
 
 export function studioFontStack(family: string) {
