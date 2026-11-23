@@ -19,6 +19,7 @@ interface Props {
   onSelect: (selection: SelectedElement) => void
   onPhotoChange: (index: number, photo: SlotPhoto) => void
   onTextChange: (id: string, patch: Partial<TextElement>) => void
+  onTextDelete: (id: string) => void
   onStickerChange: (id: string, patch: Partial<StickerElement>) => void
   onRequestUpload: (index: number) => void
   onFilesDropped: (files: File[], index: number) => void
@@ -195,7 +196,7 @@ function StickerNode({ sticker, selected, onSelect, onChange }: {
 
 export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage({
   document, viewScale, selected, showSafeArea, onSelect, onPhotoChange, onTextChange,
-  onStickerChange, onRequestUpload, onFilesDropped,
+  onTextDelete, onStickerChange, onRequestUpload, onFilesDropped,
 }, ref) {
   const stageRef = useRef<Konva.Stage>(null)
   const hoverIndex = useRef<number | null>(null)
@@ -308,7 +309,22 @@ export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage(
               opacity={item.opacity} stroke={item.stroke} strokeWidth={item.strokeWidth}
               shadowColor={item.shadowColor} shadowBlur={item.shadowBlur}
             />
-            {selected?.type === 'text' && selected.id === item.id && <Rect x={-6} y={-5} width={item.width + 12} height={item.fontSize * item.lineHeight + 10} stroke="#7c3aed" dash={[7,5]} listening={false}/>}
+            {selected?.type === 'text' && selected.id === item.id && <>
+              <Rect x={-6} y={-5} width={item.width + 12} height={item.fontSize * item.lineHeight + 10} stroke="#7c3aed" dash={[7,5]} listening={false}/>
+              <Group
+                x={item.width + 6}
+                y={-5}
+                onMouseDown={(event) => { event.cancelBubble = true }}
+                onTouchStart={(event) => { event.cancelBubble = true }}
+                onClick={(event) => { event.cancelBubble = true; onTextDelete(item.id) }}
+                onTap={(event) => { event.cancelBubble = true; onTextDelete(item.id) }}
+                onMouseEnter={() => { stageRef.current?.container().style.setProperty('cursor', 'pointer') }}
+                onMouseLeave={() => { stageRef.current?.container().style.removeProperty('cursor') }}
+              >
+                <Circle radius={11} fill="#ef4444" stroke="#ffffff" strokeWidth={2} shadowColor="#111827" shadowOpacity={.25} shadowBlur={5}/>
+                <Text x={-11} y={-11} width={22} height={22} text="×" align="center" verticalAlign="middle" fontSize={17} fontStyle="bold" fill="#ffffff" listening={false}/>
+              </Group>
+            </>}
           </Group>)}
           {document.stickers.map((sticker) => <StickerNode key={sticker.id} sticker={sticker} selected={selected?.type === 'sticker' && selected.id === sticker.id} onSelect={() => onSelect({ type:'sticker', id:sticker.id })} onChange={(patch) => onStickerChange(sticker.id, patch)}/>)}
           {showSafeArea && <Rect x={18} y={18} width={artboard.width - 36} height={artboard.height - 36} stroke="#ef4444" strokeWidth={1} dash={[8,6]} opacity={.75} listening={false}/>} 
