@@ -9,11 +9,12 @@ import {
 import { CanvasStage, type CanvasHandle } from './CanvasStage'
 import { FourcutTemplateCard } from './FourcutTemplateCard'
 import { StudioHeaderActions } from './StudioHeaderActions'
+import { StudioInspector, studioPhoneLayout, useCanvasTextEdit } from './StudioMobileControls'
 import { ARTBOARD, getDesignedLayout, layoutLabel } from '../data/layouts'
 import { templateById, templates } from '../data/templates'
 import { applyDesignTemplate, createDocument, createPhoto, readImageFile } from '../lib/document'
 import { deleteProject, exportProjectFile, importProjectFile, listProjects, loadLastProject, loadProject, saveProject } from '../lib/projects'
-import type { EditorDocument, Orientation, SelectedElement, SlotPhoto, StickerElement, TextElement, ToolTab } from '../types'
+import type { CaptionField, CaptionStyle, EditorDocument, Orientation, SelectedElement, SlotPhoto, StickerElement, TextElement, ToolTab } from '../types'
 
 const tabs: Array<{ id: ToolTab; label: string; icon: typeof LayoutGrid }> = [
   { id:'layout', label:'레이아웃', icon:LayoutGrid }, { id:'templates', label:'템플릿', icon:Sparkles },
@@ -81,6 +82,8 @@ export function Editor({ onExit }: { onExit: () => void }) {
   const [savedDocument, setSavedDocument] = useState<EditorDocument | null>(null)
   const [saving, setSaving] = useState(false)
   const [mobilePanel, setMobilePanel] = useState(false)
+  const [inspectorOpen, setInspectorOpen] = useState(false)
+  const canvasTextEdit = useCanvasTextEdit()
   const canvasRef = useRef<CanvasHandle>(null)
   const workspaceRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -135,8 +138,9 @@ export function Editor({ onExit }: { onExit: () => void }) {
       const host = workspaceRef.current
       if (!host) return
       const { width, height } = ARTBOARD[document.orientation]
-      const availableW = Math.max(260, host.clientWidth - 80)
-      const availableH = Math.max(300, host.clientHeight - 80)
+      const mobile = window.matchMedia(studioPhoneLayout).matches
+      const availableW = Math.max(mobile ? 180 : 260, host.clientWidth - (mobile ? 24 : 80))
+      const availableH = Math.max(mobile ? 120 : 300, host.clientHeight - (mobile ? 66 : 80))
       setFitScale(Math.min(availableW / width, availableH / height, 1))
     }
     updateFit()
@@ -149,6 +153,7 @@ export function Editor({ onExit }: { onExit: () => void }) {
   const selectedPhoto = selectedPhotoIndex >= 0 ? document.photos[selectedPhotoIndex] : null
   const designedLayout = getDesignedLayout(document, templateById(document.templateId))
   const selectedText = selected?.type === 'text' ? document.texts.find((item) => item.id === selected.id) : undefined
+  const selectedCaption = selected?.type === 'caption' ? selected.id : null
   const selectedSticker = selected?.type === 'sticker' ? document.stickers.find((item) => item.id === selected.id) : undefined
 
   const replacePhoto = useCallback((index: number, photo: SlotPhoto | null) => commit((current) => {
@@ -241,6 +246,10 @@ export function Editor({ onExit }: { onExit: () => void }) {
   const updateText = (id:string, patch:Partial<TextElement>) => commit((current) => ({ ...current, texts:current.texts.map((item) => item.id === id ? { ...item, ...patch } : item) }))
   const updateSticker = (id:string, patch:Partial<StickerElement>) => commit((current) => ({ ...current, stickers:current.stickers.map((item) => item.id === id ? { ...item, ...patch } : item) }))
   const updateFrame = (patch:Partial<EditorDocument['frame']>) => commit((current) => ({ ...current, frame:{ ...current.frame, ...patch } }))
+  const updateCaptionStyle = (field: CaptionField, patch: CaptionStyle) => commit((current) => {
+    const styles = current.frame.captionStyles
+    return { ...current, frame: { ...current.frame, captionStyles: { ...styles, [field]: { ...styles?.[field], ...patch } } } }
+  })
 
   const addText = (text='텍스트를 입력하세요') => {
     const art = ARTBOARD[document.orientation]
@@ -287,6 +296,7 @@ export function Editor({ onExit }: { onExit: () => void }) {
     setSavedDocument(saved ? next : null)
     setSelected(null)
     setMobilePanel(false)
+    setInspectorOpen(false)
     setStatus('')
   }
 
@@ -349,17 +359,61 @@ export function Editor({ onExit }: { onExit: () => void }) {
     return <><SectionTitle title="내 프로젝트" description="헤더의 저장 버튼을 누르면 이 브라우저에 저장돼요."/><button className="primary-btn w-full" onClick={startNewProject}><Plus size={17}/> 새 프로젝트</button><div className="mt-4 space-y-2">{projects.map(project=><div key={project.id} className="project-row"><button onClick={async()=>{ setMobilePanel(false); const loaded=await loadProject(project.id); if(loaded)openProject(loaded,true)}}><strong>{project.name}</strong><small>{new Date(project.updatedAt).toLocaleString('ko-KR')}</small></button><IconButton label="삭제" onClick={async()=>{await deleteProject(project.id);setProjects(await listProjects())}}><Trash2 size={15}/></IconButton></div>)}</div><div className="mt-5 grid grid-cols-2 gap-2"><button className="secondary-btn" onClick={()=>exportProjectFile(document)}><ArrowDownToLine size={15}/> 내보내기</button><button className="secondary-btn" onClick={()=>projectInputRef.current?.click()}><Upload size={15}/> 가져오기</button></div></>
   }
 
+  const fontChoices = (family: string, onChange: (family: string) => void) => <>
+    <label className="studio-compact-only field-label mt-3">글꼴
+      <select className="text-input" value={family} onChange={(event) => onChange(event.target.value)}>
+        {fonts.map((font) => <option key={font.family} value={font.family}>{font.label}</option>)}
+      </select>
+    </label>
+    <div className="studio-desktop-only">
+      <p className="field-label mt-5">글꼴</p>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        {fonts.map((font) => <button key={font.family} type="button" onClick={() => onChange(font.family)}
+          className={`font-choice ${font.family === family ? 'active' : ''}`} style={{fontFamily:font.family}}>
+          <strong>{font.sample}</strong><small>{font.label}</small>
+        </button>)}
+      </div>
+    </div>
+  </>
+
   const renderInspector = () => {
+    if (selectedCaption) {
+      const isTitle = selectedCaption === 'topCaption'
+      const caption = isTitle ? designedLayout?.title : designedLayout?.footer
+      const style = document.frame.captionStyles?.[selectedCaption]
+      const fallbackSize = isTitle && document.orientation !== 'landscape' ? 15 : 18
+      return <><SectionTitle title={isTitle ? '상단 문구' : '하단 문구'} />
+        <div className="studio-text-properties">
+          <label className="studio-text-content field-label">내용
+            <textarea className="text-input" value={document.frame[selectedCaption]}
+              onChange={(event) => updateFrame({ [selectedCaption]:event.target.value })} />
+          </label>
+          {fontChoices(style?.fontFamily ?? caption?.fontFamily ?? (isTitle ? 'Noto Sans KR' : 'Gaegu'),
+            (fontFamily) => updateCaptionStyle(selectedCaption, { fontFamily }))}
+          <div className="mt-4"><Range label="글자 크기" value={style?.fontSize ?? caption?.fontSize ?? fallbackSize}
+            min={10} max={100} suffix="px" onChange={(fontSize) => updateCaptionStyle(selectedCaption, { fontSize })} /></div>
+          <label className="color-field mt-3">글자색
+            <input type="color" value={style?.fill ?? templateById(document.templateId).colors[1]}
+              onChange={(event) => updateCaptionStyle(selectedCaption, { fill:event.target.value })} />
+          </label>
+        </div>
+      </>
+    }
     if (selectedPhoto) return <><SectionTitle title={`사진 ${selectedPhotoIndex+1}`} description="휠 또는 슬라이더로 확대하고 사진을 직접 드래그하세요."/><div className="mb-4 grid grid-cols-4 gap-2"><IconButton label="왼쪽 회전" onClick={()=>updatePhoto(selectedPhotoIndex,{...selectedPhoto,rotation:selectedPhoto.rotation-90})}><RotateCcw size={17}/></IconButton><IconButton label="오른쪽 회전" onClick={()=>updatePhoto(selectedPhotoIndex,{...selectedPhoto,rotation:selectedPhoto.rotation+90})}><RotateCw size={17}/></IconButton><IconButton label="좌우 반전" onClick={()=>updatePhoto(selectedPhotoIndex,{...selectedPhoto,flipX:!selectedPhoto.flipX})}><FlipHorizontal2 size={17}/></IconButton><IconButton label="상하 반전" onClick={()=>updatePhoto(selectedPhotoIndex,{...selectedPhoto,flipY:!selectedPhoto.flipY})}><FlipVertical2 size={17}/></IconButton></div><div className="space-y-5"><Range label="확대" value={selectedPhoto.zoom} min={selectedPhoto.fit==='cover'?1:.15} max={5} step={.01} suffix="×" onChange={zoom=>updatePhoto(selectedPhotoIndex,{...selectedPhoto,zoom})}/><Range label="세부 회전" value={selectedPhoto.rotation} min={-180} max={180} suffix="°" onChange={rotation=>updatePhoto(selectedPhotoIndex,{...selectedPhoto,rotation})}/><Range label="밝기" value={selectedPhoto.brightness} min={-100} max={100} onChange={brightness=>updatePhoto(selectedPhotoIndex,{...selectedPhoto,brightness})}/><Range label="대비" value={selectedPhoto.contrast} min={-100} max={100} onChange={contrast=>updatePhoto(selectedPhotoIndex,{...selectedPhoto,contrast})}/><Range label="채도" value={selectedPhoto.saturation} min={-100} max={100} onChange={saturation=>updatePhoto(selectedPhotoIndex,{...selectedPhoto,saturation})}/></div><p className="field-label mt-6">맞춤 방식</p><div className="grid grid-cols-2 gap-2"><button className={`choice-btn ${selectedPhoto.fit==='cover'?'active':''}`} onClick={()=>updatePhoto(selectedPhotoIndex,{...selectedPhoto,fit:'cover',zoom:1,offsetX:0,offsetY:0})}>프레임 채우기</button><button className={`choice-btn ${selectedPhoto.fit==='contain'?'active':''}`} onClick={()=>updatePhoto(selectedPhotoIndex,{...selectedPhoto,fit:'contain',zoom:1,offsetX:0,offsetY:0})}>전체 보기</button></div><p className="field-label mt-6">필터</p><div className="grid grid-cols-3 gap-2">{(['none','grayscale','sepia'] as const).map(filter=><button key={filter} className={`choice-btn ${selectedPhoto.filter===filter?'active':''}`} onClick={()=>updatePhoto(selectedPhotoIndex,{...selectedPhoto,filter})}>{filter==='none'?'원본':filter==='grayscale'?'흑백':'세피아'}</button>)}</div><div className="mt-6 grid grid-cols-2 gap-2"><button className="secondary-btn" onClick={()=>updatePhoto(selectedPhotoIndex,{...selectedPhoto,zoom:1,offsetX:0,offsetY:0,rotation:0,flipX:false,flipY:false,brightness:0,contrast:0,saturation:0,filter:'none'})}><RotateCcw size={15}/> 초기화</button><button className="danger-btn" onClick={deleteSelected}><Trash2 size={15}/> 삭제</button></div></>
-    if (selectedText) return <><SectionTitle title="텍스트 편집"/><textarea className="text-input min-h-24 resize-y" value={selectedText.text} onChange={e=>updateText(selectedText.id,{text:e.target.value})}/><p className="field-label mt-5">글꼴</p><div className="mt-2 grid grid-cols-2 gap-2">{fonts.map(font=><button key={font.family} type="button" onClick={()=>updateText(selectedText.id,{fontFamily:font.family})} className={`font-choice ${selectedText.fontFamily===font.family?'active':''}`} style={{fontFamily:font.family}}><strong>{font.sample}</strong><small>{font.label}</small></button>)}</div><div className="mt-5 space-y-5"><Range label="글자 크기" value={selectedText.fontSize} min={10} max={120} suffix="px" onChange={fontSize=>updateText(selectedText.id,{fontSize})}/><Range label="자간" value={selectedText.letterSpacing} min={-3} max={20} suffix="px" onChange={letterSpacing=>updateText(selectedText.id,{letterSpacing})}/><Range label="줄 간격" value={selectedText.lineHeight} min={.8} max={3} step={.1} onChange={lineHeight=>updateText(selectedText.id,{lineHeight})}/><Range label="회전" value={selectedText.rotation} min={-180} max={180} suffix="°" onChange={rotation=>updateText(selectedText.id,{rotation})}/><Range label="투명도" value={selectedText.opacity} min={.1} max={1} step={.01} onChange={opacity=>updateText(selectedText.id,{opacity})}/></div><div className="mt-5 grid grid-cols-2 gap-3"><label className="color-field compact">글자<input type="color" value={selectedText.fill} onChange={e=>updateText(selectedText.id,{fill:e.target.value})}/></label><label className="color-field compact">테두리<input type="color" value={selectedText.stroke==='transparent'?'#ffffff':selectedText.stroke} onChange={e=>updateText(selectedText.id,{stroke:e.target.value,strokeWidth:1})}/></label></div><div className="mt-5 grid grid-cols-2 gap-2"><button className="secondary-btn" onClick={duplicateSelected}><Copy size={15}/> 복제</button><button className="danger-btn" onClick={deleteSelected}><Trash2 size={15}/> 삭제</button></div></>
+    if (selectedText) return <><SectionTitle title="텍스트 편집"/><div className="studio-text-properties">
+      <label className="studio-text-content field-label">내용<textarea className="text-input min-h-24 resize-y" value={selectedText.text}
+        onChange={e=>updateText(selectedText.id,{text:e.target.value})}/></label>
+      {fontChoices(selectedText.fontFamily, (fontFamily) => updateText(selectedText.id, {fontFamily}))}<div className="mt-5 space-y-5"><Range label="글자 크기" value={selectedText.fontSize} min={10} max={120} suffix="px" onChange={fontSize=>updateText(selectedText.id,{fontSize})}/><Range label="자간" value={selectedText.letterSpacing} min={-3} max={20} suffix="px" onChange={letterSpacing=>updateText(selectedText.id,{letterSpacing})}/><Range label="줄 간격" value={selectedText.lineHeight} min={.8} max={3} step={.1} onChange={lineHeight=>updateText(selectedText.id,{lineHeight})}/><Range label="회전" value={selectedText.rotation} min={-180} max={180} suffix="°" onChange={rotation=>updateText(selectedText.id,{rotation})}/><Range label="투명도" value={selectedText.opacity} min={.1} max={1} step={.01} onChange={opacity=>updateText(selectedText.id,{opacity})}/></div><div className="mt-5 grid grid-cols-2 gap-3"><label className="color-field compact">글자<input type="color" value={selectedText.fill} onChange={e=>updateText(selectedText.id,{fill:e.target.value})}/></label><label className="color-field compact">테두리<input type="color" value={selectedText.stroke==='transparent'?'#ffffff':selectedText.stroke} onChange={e=>updateText(selectedText.id,{stroke:e.target.value,strokeWidth:1})}/></label></div><div className="mt-5 grid grid-cols-2 gap-2"><button className="secondary-btn" onClick={duplicateSelected}><Copy size={15}/> 복제</button><button className="danger-btn" onClick={deleteSelected}><Trash2 size={15}/> 삭제</button></div></div></>
     if (selectedSticker) return <><SectionTitle title="스티커 편집"/><div className="space-y-5"><Range label="크기" value={selectedSticker.size} min={16} max={220} suffix="px" onChange={size=>updateSticker(selectedSticker.id,{size})}/><Range label="회전" value={selectedSticker.rotation} min={-180} max={180} suffix="°" onChange={rotation=>updateSticker(selectedSticker.id,{rotation})}/><Range label="투명도" value={selectedSticker.opacity} min={.1} max={1} step={.01} onChange={opacity=>updateSticker(selectedSticker.id,{opacity})}/></div><div className="mt-5 grid grid-cols-2 gap-2"><button className="secondary-btn" onClick={duplicateSelected}><Copy size={15}/> 복제</button><button className="danger-btn" onClick={deleteSelected}><Trash2 size={15}/> 삭제</button></div></>
-    return <><SectionTitle title="프레임 설정" description="요소를 선택하면 상세 설정이 표시됩니다."/><div className="summary-card"><Frame/><div><strong>{designedLayout?.label ?? layoutLabel(document.cutCount,document.orientation)}</strong><small>{templateById(document.templateId).name}</small></div></div><button className="secondary-btn mt-4 w-full" onClick={()=>setTab('background')}><Palette size={15}/> 프레임 꾸미기</button><label className="toggle-row mt-5"><span>인쇄 안전 영역</span><input type="checkbox" checked={showSafeArea} onChange={e=>setShowSafeArea(e.target.checked)}/></label></>
+    return <><SectionTitle title="프레임 설정" description="요소를 선택하면 상세 설정이 표시됩니다."/><div className="summary-card"><Frame/><div><strong>{designedLayout?.label ?? layoutLabel(document.cutCount,document.orientation)}</strong><small>{templateById(document.templateId).name}</small></div></div><button className="secondary-btn mt-4 w-full" onClick={()=>{setTab('background');setInspectorOpen(false);setMobilePanel(true)}}><Palette size={15}/> 프레임 꾸미기</button><label className="toggle-row mt-5"><span>인쇄 안전 영역</span><input type="checkbox" checked={showSafeArea} onChange={e=>setShowSafeArea(e.target.checked)}/></label></>
   }
 
   const actualScale = fitScale * viewZoom
   const outputPixels = useMemo(() => ({ width:Math.round(document.output.widthMm/25.4*document.output.dpi), height:Math.round(document.output.heightMm/25.4*document.output.dpi) }), [document.output])
 
-  return <div className="flex h-screen min-h-[640px] flex-col overflow-hidden bg-slate-100 text-slate-900">
+  const inspectorLabel = selectedText || selectedCaption ? '글자 스타일' : selectedPhoto ? '사진 조정' : selectedSticker ? '스티커 설정' : '프레임 설정'
+
+  return <div className="studio-editor-shell flex h-screen min-h-[640px] flex-col overflow-hidden bg-slate-100 text-slate-900">
     <input ref={fileInputRef} hidden type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>{ if(e.target.files?.length){setMobilePanel(false);void addFiles(Array.from(e.target.files),uploadTarget.current??undefined)} e.target.value='' }}/>
     <input ref={projectInputRef} hidden type="file" accept=".json,.photostudio.json" onChange={async e=>{const file=e.target.files?.[0];if(file){setMobilePanel(false);try{openProject(await importProjectFile(file),false)}catch{setStatus('올바른 프로젝트 파일이 아니에요')}}e.target.value=''}}/>
     <input ref={stickerInputRef} hidden type="file" accept="image/png,image/webp" onChange={async e=>{const file=e.target.files?.[0];if(file)addSticker(await readImageFile(file),'image');e.target.value=''}}/>
@@ -370,18 +424,34 @@ export function Editor({ onExit }: { onExit: () => void }) {
         onUndo={undo} onRedo={redo} canUndo={undoStack.length > 0} canRedo={redoStack.length > 0}
         onPreview={() => void showPreview()} onDownload={() => setDownloadOpen(true)} />
     </header>
-    <div className="flex min-h-0 flex-1">
-      <nav className="tool-nav">{tabs.map(item=><button key={item.id} aria-controls="fourcut-tool-panel" className={tab===item.id?'active':''} onClick={()=>{
+    <div className="studio-editor-body flex min-h-0 flex-1">
+      <nav className="tool-nav studio-tool-nav" aria-label="인생네컷 도구">{tabs.map(item=><button key={item.id} aria-controls="fourcut-tool-panel" className={tab===item.id?'active':''} onClick={()=>{
         setTab(item.id)
+        setInspectorOpen(false)
         setMobilePanel((open) => tab !== item.id || !open)
       }}><item.icon size={19}/><span>{item.label}</span></button>)}</nav>
-      <aside id="fourcut-tool-panel" className={`left-panel ${mobilePanel?'mobile-open':''}`}><button className="mobile-close" onClick={()=>setMobilePanel(false)}>닫기</button>{renderTab()}</aside>
-      <main ref={workspaceRef} className="workspace" onClick={()=>setMobilePanel(false)}>
-        <div className="canvas-center"><CanvasStage ref={canvasRef} document={document} viewScale={actualScale} selected={isExporting ? null : selected} exporting={isExporting} showSafeArea={!isExporting && showSafeArea} onSelect={setSelected} onPhotoChange={updatePhoto} onTextChange={updateText} onTextDelete={(id)=>{commit(current=>({...current,texts:current.texts.filter(item=>item.id!==id)}));setSelected(null)}} onStickerChange={updateSticker} onStickerDelete={(id)=>{commit(current=>({...current,stickers:current.stickers.filter(item=>item.id!==id)}));setSelected(null)}} onRequestUpload={requestUpload} onFilesDropped={addFiles}/></div>
-        <div className="zoom-bar"><IconButton label="축소" onClick={()=>setViewZoom(v=>Math.max(.5,v-.1))}><ZoomOut size={16}/></IconButton><span>{Math.round(viewZoom*100)}%</span><IconButton label="확대" onClick={()=>setViewZoom(v=>Math.min(2,v+.1))}><ZoomIn size={16}/></IconButton><button onClick={()=>setViewZoom(1)}><Maximize2 size={14}/> 화면 맞춤</button></div>
+      <aside id="fourcut-tool-panel" className={`left-panel studio-tool-panel ${mobilePanel?'mobile-open':''}`}><button className="mobile-close" onClick={()=>setMobilePanel(false)}>닫기</button>{renderTab()}</aside>
+      <main ref={workspaceRef} className="workspace studio-workspace" onClick={()=>{setMobilePanel(false);setInspectorOpen(false)}}>
+        <div className="canvas-center"><CanvasStage ref={canvasRef} document={document} viewScale={actualScale} selected={isExporting ? null : selected} exporting={isExporting} showSafeArea={!isExporting && showSafeArea} onSelect={setSelected}
+          onEditText={canvasTextEdit.enabled ? (item, node) => {
+            setInspectorOpen(false)
+            setMobilePanel(false)
+            canvasTextEdit.open(item.text, node, (text) => updateText(item.id, {text}))
+          } : undefined}
+          onEditCaption={canvasTextEdit.enabled ? (field, node) => {
+            setInspectorOpen(false)
+            setMobilePanel(false)
+            canvasTextEdit.open(document.frame[field], node, (value) => updateFrame({[field]:value}))
+          } : undefined}
+          onPhotoChange={updatePhoto} onTextChange={updateText} onTextDelete={(id)=>{commit(current=>({...current,texts:current.texts.filter(item=>item.id!==id)}));setSelected(null)}} onStickerChange={updateSticker} onStickerDelete={(id)=>{commit(current=>({...current,stickers:current.stickers.filter(item=>item.id!==id)}));setSelected(null)}} onRequestUpload={requestUpload} onFilesDropped={addFiles}/></div>
+        <div className="zoom-bar studio-zoom"><IconButton label="축소" onClick={()=>setViewZoom(v=>Math.max(.5,v-.1))}><ZoomOut size={16}/></IconButton><span>{Math.round(viewZoom*100)}%</span><IconButton label="확대" onClick={()=>setViewZoom(v=>Math.min(2,v+.1))}><ZoomIn size={16}/></IconButton><button onClick={()=>setViewZoom(1)}><Maximize2 size={14}/> 화면 맞춤</button></div>
       </main>
-      <aside className="right-panel">{renderInspector()}</aside>
+      <StudioInspector id="fourcut-inspector" className="right-panel" label={inspectorLabel} open={inspectorOpen}
+        onToggle={() => { setMobilePanel(false); setInspectorOpen((open) => !open) }}>
+        {renderInspector()}
+      </StudioInspector>
     </div>
+    {canvasTextEdit.editor}
     <footer className="editor-footer"><span>{document.cutCount}컷 · {document.output.widthMm}×{document.output.heightMm}mm · {document.output.dpi}DPI</span><span>{outputPixels.width}×{outputPixels.height}px</span></footer>
     {previewUrl && <div className="modal-backdrop" onMouseDown={() => setPreviewUrl('')}>
       <div className="download-modal max-w-2xl" role="dialog" aria-modal="true" aria-labelledby="fourcut-preview-title"

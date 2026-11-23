@@ -8,6 +8,7 @@ import {
   Unlock, Upload, Wallpaper, ZoomIn, ZoomOut,
 } from 'lucide-react'
 import { StudioHeaderActions } from '../../components/StudioHeaderActions'
+import { StudioInspector, studioPhoneLayout, useCanvasTextEdit } from '../../components/StudioMobileControls'
 import { PHOTO_ZOOM } from '../../lib/photoZoom'
 import { PosterCanvas } from './PosterCanvas'
 import { PosterTemplateCard } from './PosterTemplateCard'
@@ -59,7 +60,9 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
   const [downloadFormat,setDownloadFormat]=useState<'png'|'jpeg'|'pdf'>('png')
   const [previewUrl,setPreviewUrl]=useState('')
   const [qrValue,setQrValue]=useState('https://example.com')
-  const [mobilePanel,setMobilePanel]=useState(true)
+  const [mobilePanel,setMobilePanel]=useState(false)
+  const [inspectorOpen,setInspectorOpen]=useState(false)
+  const canvasTextEdit = useCanvasTextEdit()
   const canvasRef=useRef<PosterCanvasHandle>(null)
   const workspaceRef=useRef<HTMLElement>(null)
   const imageInputRef=useRef<HTMLInputElement>(null)
@@ -117,7 +120,11 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
   useEffect(()=>{refreshProjects()},[refreshProjects])
   useEffect(()=>{
     const workspace=workspaceRef.current;if(!workspace)return
-    const update=()=>setFitScale(Math.max(.16,Math.min(1,(workspace.clientWidth-110)/document.size.width,(workspace.clientHeight-110)/document.size.height)))
+    const update=()=>{
+      const mobile = window.matchMedia(studioPhoneLayout).matches
+      setFitScale(Math.max(mobile ? .08 : .16, Math.min(1, (workspace.clientWidth - (mobile ? 28 : 110)) / document.size.width,
+        (workspace.clientHeight - (mobile ? 66 : 110)) / document.size.height)))
+    }
     const observer=new ResizeObserver(update);observer.observe(workspace);update();return()=>observer.disconnect()
   },[document.size.width,document.size.height])
   useEffect(()=>{
@@ -197,6 +204,7 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
     setHistory([])
     setFuture([])
     setMobilePanel(false)
+    setInspectorOpen(false)
     setStatus('')
   }
   const newProject=()=>{
@@ -268,13 +276,14 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
     const common=<><label className="poster-label">레이어 이름</label><input className="poster-input" value={selected.name} onChange={(event)=>updateElement(selected.id,{name:event.target.value})}/><div className="poster-grid-2"><Range label="X" value={selected.x} min={0} max={document.size.width} onChange={(x)=>updateElement(selected.id,{x})}/><Range label="Y" value={selected.y} min={0} max={document.size.height} onChange={(y)=>updateElement(selected.id,{y})}/></div><Range label="회전" value={selected.rotation} min={-180} max={180} suffix="°" onChange={(rotation)=>updateElement(selected.id,{rotation})}/><Range label="투명도" value={selected.opacity} min={.1} max={1} step={.01} onChange={(opacity)=>updateElement(selected.id,{opacity})}/></>
     let specific=null
     if(selected.kind==='image')specific=<><button className="poster-button" onClick={()=>requestImage(selected.id)}><ImagePlus size={15}/> 사진 교체</button><Range label="사진 확대" value={selected.zoom} min={Math.min(selected.zoom, selected.isSlot ? PHOTO_ZOOM.coverMin : PHOTO_ZOOM.containMin)} max={PHOTO_ZOOM.max} step={.01} suffix="×" onChange={(zoom)=>updateElement(selected.id,{zoom})}/><Range label="밝기" value={selected.brightness} min={-100} max={100} onChange={(brightness)=>updateElement(selected.id,{brightness})}/><Range label="대비" value={selected.contrast} min={-100} max={100} onChange={(contrast)=>updateElement(selected.id,{contrast})}/><Range label="채도" value={selected.saturation} min={-100} max={100} onChange={(saturation)=>updateElement(selected.id,{saturation})}/><label className="poster-label">마스크</label><select className="poster-select" value={selected.mask} onChange={(event)=>updateElement(selected.id,{mask:event.target.value as PosterImageElement['mask']})}><option value="rect">사각형</option><option value="round">둥근 사각형</option><option value="circle">원형</option><option value="oval">타원형</option></select><div className="poster-grid-2 poster-section"><button className="poster-button" onClick={()=>updateElement(selected.id,{flipX:!selected.flipX})}>좌우 반전</button><button className="poster-button" onClick={()=>updateElement(selected.id,{flipY:!selected.flipY})}>상하 반전</button></div></>
-    if(selected.kind==='text')specific=<><label className="poster-label">내용</label><textarea className="poster-textarea" value={selected.text} onChange={(event)=>updateElement(selected.id,{text:event.target.value})}/><label className="poster-label">글꼴</label><select className="poster-select" value={selected.fontFamily} onChange={(event)=>updateElement(selected.id,{fontFamily:event.target.value})}>{posterFonts.map(([family,label])=><option key={family} value={family}>{label}</option>)}</select><Range label="글자 크기" value={selected.fontSize} min={8} max={180} suffix="px" onChange={(fontSize)=>updateElement(selected.id,{fontSize})}/><label className="poster-label">글자색</label><input className="poster-color" type="color" value={selected.fill} onChange={(event)=>updateElement(selected.id,{fill:event.target.value})}/><div className="poster-grid-2 poster-section"><button className="poster-button" onClick={()=>updateElement(selected.id,{fontStyle:selected.fontStyle.includes('bold')?'normal':'bold'})}>굵게</button><button className="poster-button" onClick={()=>updateElement(selected.id,{underline:!selected.underline})}>밑줄</button></div><label className="poster-label">정렬</label><div className="poster-grid-2"><button className="poster-button" onClick={()=>updateElement(selected.id,{align:'left'})}>왼쪽</button><button className="poster-button" onClick={()=>updateElement(selected.id,{align:'center'})}>가운데</button></div></>
+    if(selected.kind==='text')specific=<div className="studio-text-properties"><label className="studio-text-content poster-label">내용<textarea className="poster-textarea" value={selected.text} onChange={(event)=>updateElement(selected.id,{text:event.target.value})}/></label><label className="poster-label" htmlFor="poster-font-family">글꼴</label><select id="poster-font-family" className="poster-select" value={selected.fontFamily} onChange={(event)=>updateElement(selected.id,{fontFamily:event.target.value})}>{posterFonts.map(([family,label])=><option key={family} value={family}>{label}</option>)}</select><Range label="글자 크기" value={selected.fontSize} min={8} max={180} suffix="px" onChange={(fontSize)=>updateElement(selected.id,{fontSize})}/><label className="poster-label" htmlFor="poster-font-fill">글자색</label><input id="poster-font-fill" className="poster-color" type="color" value={selected.fill} onChange={(event)=>updateElement(selected.id,{fill:event.target.value})}/><div className="poster-grid-2 poster-section"><button className="poster-button" onClick={()=>updateElement(selected.id,{fontStyle:selected.fontStyle.includes('bold')?'normal':'bold'})}>굵게</button><button className="poster-button" onClick={()=>updateElement(selected.id,{underline:!selected.underline})}>밑줄</button></div><label className="poster-label">정렬</label><div className="poster-grid-2"><button className="poster-button" onClick={()=>updateElement(selected.id,{align:'left'})}>왼쪽</button><button className="poster-button" onClick={()=>updateElement(selected.id,{align:'center'})}>가운데</button></div></div>
     if(selected.kind==='shape')specific=<><label className="poster-label">채우기</label><input className="poster-color" type="color" value={selected.fill} onChange={(event)=>updateElement(selected.id,{fill:event.target.value})}/><label className="poster-label">테두리</label><input className="poster-color" type="color" value={selected.stroke==='transparent'?'#111827':selected.stroke} onChange={(event)=>updateElement(selected.id,{stroke:event.target.value})}/><Range label="테두리 두께" value={selected.strokeWidth} min={0} max={30} onChange={(strokeWidth)=>updateElement(selected.id,{strokeWidth})}/></>
     return <><PanelTitle title={`${selected.name} 편집`} text="캔버스에서 드래그하거나 아래 값을 조정하세요."/>{specific}{common}<div className="poster-grid-2 poster-section"><button className="poster-button" onClick={()=>addElement(clonePosterElement(selected))}><Copy size={14}/> 복제</button><button className="poster-button danger" onClick={()=>removeElement(selected.id)}><Trash2 size={14}/> 삭제</button></div><div className="poster-grid-2 poster-section"><button className="poster-button" onClick={()=>reorder(selected.id,'front')}><BringToFront size={14}/> 맨 앞으로</button><button className="poster-button" onClick={()=>reorder(selected.id,'back')}><SendToBack size={14}/> 맨 뒤로</button></div></>
   }
 
   const actualScale=fitScale*viewZoom
-  return <div className="poster-shell">
+  const inspectorLabel = selected?.kind === 'text' ? '글자 스타일' : selected?.kind === 'image' ? '사진 조정' : selected ? '요소 설정' : '포스터 설정'
+  return <div className="poster-shell studio-editor-shell">
     <input ref={imageInputRef} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={(event)=>{const file=event.target.files?.[0];if(file){setMobilePanel(false);void addImageFile(file)}event.target.value=''}}/>
     <input ref={backgroundInputRef} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={async(event)=>{const file=event.target.files?.[0];if(file){setMobilePanel(false);const src=await readPosterImage(file);commit((d)=>({...d,background:{...d.background,type:'image',imageSrc:src}}))}event.target.value=''}}/>
     <input ref={stickerInputRef} hidden type="file" accept="image/png,image/webp" onChange={async(event)=>{const file=event.target.files?.[0];if(file)addSticker(await readPosterImage(file),'image');event.target.value=''}}/>
@@ -287,17 +296,18 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
         onUndo={undo} onRedo={redo} canUndo={history.length > 0} canRedo={future.length > 0}
         onPreview={() => void showPreview()} onDownload={() => setDownloadOpen(true)} />
     </header>
-    <div className="poster-editor-body">
-      <nav className="poster-tools">{tabs.map((item)=><button key={item.id} aria-controls="poster-tool-panel" className={tab===item.id?'active':''} onClick={()=>{
+    <div className="poster-editor-body studio-editor-body">
+      <nav className="poster-tools studio-tool-nav" aria-label="포스터 도구">{tabs.map((item)=><button key={item.id} aria-controls="poster-tool-panel" className={tab===item.id?'active':''} onClick={()=>{
         setTab(item.id)
+        setInspectorOpen(false)
         setMobilePanel((open) => tab !== item.id || !open)
       }}><item.icon size={19}/><span>{item.label}</span></button>)}</nav>
-      <aside id="poster-tool-panel" className={`poster-panel ${mobilePanel?'mobile-open':''}`}>
+      <aside id="poster-tool-panel" className={`poster-panel studio-tool-panel ${mobilePanel?'mobile-open':''}`}>
         <button className="poster-button poster-mobile-close" onClick={()=>setMobilePanel(false)}>패널 닫기</button>
         {renderTab()}
       </aside>
-      <main ref={workspaceRef} className="poster-workspace"
-        onClick={() => setMobilePanel(false)}
+      <main ref={workspaceRef} className="poster-workspace studio-workspace"
+        onClick={() => { setMobilePanel(false); setInspectorOpen(false) }}
         onDragOver={(event) => {
           if (!event.dataTransfer.types.includes('Files')) return
           event.preventDefault()
@@ -315,11 +325,22 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
           if (file) void addImageFile(file, targetId)
         }}
       >
-        <PosterCanvas ref={canvasRef} document={document} scale={actualScale} selectedId={selectedId} exporting={exporting} dropTargetId={dropTargetId} showSafeArea={showSafeArea} onSelect={setSelectedId} onChange={updateElement} onDelete={removeElement} onRequestImage={requestImage}/>
-        <div className="poster-zoom"><button className="poster-icon-button" onClick={()=>setViewZoom((v)=>Math.max(.4,v-.1))}><ZoomOut size={16}/></button><span>{Math.round(viewZoom*100)}%</span><button className="poster-icon-button" onClick={()=>setViewZoom((v)=>Math.min(2.5,v+.1))}><ZoomIn size={16}/></button><button className="poster-icon-button" onClick={()=>setViewZoom(1)}><Maximize2 size={15}/></button></div>
+        <PosterCanvas ref={canvasRef} document={document} scale={actualScale} selectedId={selectedId} exporting={exporting}
+          dropTargetId={dropTargetId} showSafeArea={showSafeArea} onSelect={setSelectedId}
+          onEditText={canvasTextEdit.enabled ? (item, node) => {
+            setInspectorOpen(false)
+            setMobilePanel(false)
+            canvasTextEdit.open(item.text, node, (text) => updateElement(item.id, {text}))
+          } : undefined}
+          onChange={updateElement} onDelete={removeElement} onRequestImage={requestImage}/>
+        <div className="poster-zoom studio-zoom"><button className="poster-icon-button" aria-label="축소" onClick={()=>setViewZoom((v)=>Math.max(.4,v-.1))}><ZoomOut size={16}/></button><span>{Math.round(viewZoom*100)}%</span><button className="poster-icon-button" aria-label="확대" onClick={()=>setViewZoom((v)=>Math.min(2.5,v+.1))}><ZoomIn size={16}/></button><button className="poster-icon-button" aria-label="화면 맞춤" onClick={()=>setViewZoom(1)}><Maximize2 size={15}/></button></div>
       </main>
-      <aside className="poster-inspector">{renderInspector()}</aside>
+      <StudioInspector id="poster-inspector" className="poster-inspector" label={inspectorLabel} open={inspectorOpen}
+        onToggle={() => { setMobilePanel(false); setInspectorOpen((open) => !open) }}>
+        {renderInspector()}
+      </StudioInspector>
     </div>
+    {canvasTextEdit.editor}
     <footer className="poster-footer"><span>{document.size.preset.toUpperCase()} · {document.elements.length}개 레이어 · {document.size.dpi}DPI</span><span>{document.size.outputWidth} × {document.size.outputHeight}px</span></footer>
     {downloadOpen&&<div className="poster-modal-backdrop" onMouseDown={()=>setDownloadOpen(false)}><div className="poster-modal" onMouseDown={(event)=>event.stopPropagation()}><div className="poster-modal-head"><PanelTitle title="포스터 다운로드" text="형식과 품질을 선택한 뒤 저장하세요."/><button className="poster-icon-button" onClick={()=>setDownloadOpen(false)}><Minus/></button></div><label className="poster-label">파일 형식</label><div className="poster-format-row">{(['png','jpeg','pdf'] as const).map((format)=><button key={format} className={downloadFormat===format?'active':''} onClick={()=>setDownloadFormat(format)}>{format==='jpeg'?'JPG':format.toUpperCase()}</button>)}</div><label className="poster-label">출력 해상도</label><div style={{padding:13,background:'#f1f5f9',borderRadius:10,fontSize:13,display:'flex',justifyContent:'space-between'}}><span>{document.size.dpi}DPI</span><strong>{document.size.outputWidth} × {document.size.outputHeight}px</strong></div><button className="poster-button primary poster-section" onClick={()=>void exportImage()}><Download size={16}/> {downloadFormat==='jpeg'?'JPG':downloadFormat.toUpperCase()} 다운로드</button><button className="poster-button poster-section" onClick={()=>void printPoster()}><Sparkles size={16}/> 인쇄 미리보기</button></div></div>}
     {previewUrl&&<div className="poster-modal-backdrop" onMouseDown={()=>setPreviewUrl('')}><div className="poster-modal" style={{width:'min(900px,96vw)'}} onMouseDown={(event)=>event.stopPropagation()}><div className="poster-modal-head"><PanelTitle title="포스터 미리보기" text="편집 가이드와 선택 테두리는 출력되지 않습니다."/><button className="poster-icon-button" onClick={()=>setPreviewUrl('')}><Minus/></button></div><img className="poster-preview-image" src={previewUrl} alt="포스터 미리보기"/></div></div>}

@@ -5,7 +5,7 @@ import useImage from 'use-image'
 import { ARTBOARD, getDesignedLayout, getLayoutRects, pointInPhotoSlot, scallopOutline } from '../data/layouts'
 import { templateById } from '../data/templates'
 import { PHOTO_ZOOM, zoomFromWheel } from '../lib/photoZoom'
-import type { EditorDocument, LayoutRect, SelectedElement, SlotPhoto, StickerElement, TextElement } from '../types'
+import type { CaptionField, EditorDocument, LayoutRect, SelectedElement, SlotPhoto, StickerElement, TextElement } from '../types'
 
 export interface CanvasHandle {
   toDataURL: (mimeType: 'image/png' | 'image/jpeg', pixelRatio: number, quality?: number) => string
@@ -19,6 +19,8 @@ interface Props {
   showSafeArea: boolean
   exporting: boolean
   onSelect: (selection: SelectedElement) => void
+  onEditText?: (item: TextElement, node: Konva.Node) => void
+  onEditCaption?: (field: CaptionField, node: Konva.Node) => void
   onPhotoChange: (index: number, photo: SlotPhoto) => void
   onTextChange: (id: string, patch: Partial<TextElement>) => void
   onTextDelete: (id: string) => void
@@ -242,7 +244,7 @@ function StickerNode({ sticker, selected, onSelect, onChange, onDelete }: {
 }
 
 export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage({
-  document, viewScale, selected, showSafeArea, exporting, onSelect, onPhotoChange, onTextChange,
+  document, viewScale, selected, showSafeArea, exporting, onSelect, onEditText, onEditCaption, onPhotoChange, onTextChange,
   onTextDelete, onStickerChange, onStickerDelete, onRequestUpload, onFilesDropped,
 }, ref) {
   const stageRef = useRef<Konva.Stage>(null)
@@ -260,6 +262,19 @@ export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage(
     fontSize:document.orientation === 'landscape' ? 18 : 15,
   }
   const footer = layout?.footer ?? {x:24, y:artboard.height-48, width:artboard.width-48, fontFamily:'Gaegu', fontSize:18}
+  const renderCaption = (field: CaptionField, caption: typeof title, fontStyle: string, lineHeight = 1, letterSpacing = 0) => {
+    const value = document.frame[field]
+    const style = document.frame.captionStyles?.[field]
+    const selectCaption = (event: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+      event.cancelBubble = true
+      onSelect({ type:'caption', id:field })
+      onEditCaption?.(field, event.target)
+    }
+    return <Text {...caption} text={value} align={caption.align ?? 'center'} fontStyle={fontStyle}
+      fontFamily={style?.fontFamily ?? caption.fontFamily} fontSize={style?.fontSize ?? caption.fontSize}
+      fill={style?.fill ?? template.colors[1]} lineHeight={lineHeight} letterSpacing={letterSpacing}
+      listening={!exporting && Boolean(value)} onClick={selectCaption} onTap={selectCaption} />
+  }
 
   useImperativeHandle(ref, () => ({
     toDataURL: (mimeType, pixelRatio, quality = .95) => stageRef.current?.toDataURL({ mimeType, pixelRatio, quality }) || '',
@@ -327,6 +342,7 @@ export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage(
           zoomPhoto(index, zoomFromWheel(current.zoom, event.evt.deltaY), point ? { x: point.x / viewScale, y: point.y / viewScale } : undefined)
         }}
         onTouchStart={(event) => {
+          if (event.evt.touches.length === 1 && event.target === event.target.getStage()) onSelect(null)
           if (event.evt.touches.length !== 2 || hoverIndex.current === null) return
           const [a, b] = Array.from(event.evt.touches)
           pinch.current = { distance: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), index: hoverIndex.current }
@@ -346,8 +362,7 @@ export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage(
           <Rect width={artboard.width} height={artboard.height} fill={document.frame.background} listening={false}/>
           {artwork && <KonvaImage image={artwork} width={artboard.width} height={artboard.height} listening={false} />}
           {!layout && <Pattern document={document}/>}
-          <Text {...title} text={document.frame.topCaption} align={title.align ?? 'center'} fontStyle="bold"
-            lineHeight={1.12} letterSpacing={layout ? 0 : 3} fill={template.colors[1]} listening={false}/>
+          {renderCaption('topCaption', title, 'bold', 1.12, layout ? 0 : 3)}
           {!layout && document.frame.showDecorations && <><Text text={template.decoration} x={20} y={18} fontSize={22} fill={template.colors[1]} listening={false}/><Text text={template.decoration} x={artboard.width - 42} y={18} fontSize={22} fill={template.colors[1]} listening={false}/></>}
           {rects.map((rect, index) => {
             const photo = document.photos[index]
@@ -366,8 +381,7 @@ export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage(
                 strokeWidth={document.frame.borderWidth} listening={false}/>}
             </Group>
           })}
-          <Text {...footer} text={document.frame.bottomCaption} align={footer.align ?? 'center'}
-            fontStyle={layout ? 'bold' : 'normal'} fill={template.colors[1]} listening={false}/>
+          {renderCaption('bottomCaption', footer, layout ? 'bold' : 'normal')}
           {document.frame.showDate && <Text text={new Intl.DateTimeFormat('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date())}
             x={footer.x} y={Math.min(artboard.height-18,footer.y+footer.fontSize+3)} width={footer.width} align={footer.align ?? 'center'}
             fontFamily="Noto Sans KR" fontSize={layout ? 13 : 9} letterSpacing={1} fill={template.colors[1]} opacity={.75} listening={false}/>}
@@ -377,8 +391,16 @@ export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage(
             y={item.y}
             rotation={item.rotation}
             draggable
-            onClick={() => onSelect({ type:'text', id:item.id })}
-            onTap={() => onSelect({ type:'text', id:item.id })}
+            onClick={(event) => {
+              onSelect({ type:'text', id:item.id })
+              const textNode = (event.currentTarget as Konva.Group).findOne('Text')
+              if (textNode) onEditText?.(item, textNode)
+            }}
+            onTap={(event) => {
+              onSelect({ type:'text', id:item.id })
+              const textNode = (event.currentTarget as Konva.Group).findOne('Text')
+              if (textNode) onEditText?.(item, textNode)
+            }}
             onDragStart={() => onSelect({ type:'text', id:item.id })}
             onDragEnd={(event) => onTextChange(item.id, { x:event.target.x(), y:event.target.y() })}
           >

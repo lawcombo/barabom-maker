@@ -61,6 +61,8 @@
 
   .studio-header-button { width: 34px; }
   .studio-header-button.studio-header-download { padding: 0 9px; }
-  .studio-editor-header + div .left-panel,
-  .studio-editor-header + div .poster-panel { top: 94px; }
+}
+
+@media (max-width: 360px) {
+  .studio-header-button.studio-header-download span { display: none; }
 }

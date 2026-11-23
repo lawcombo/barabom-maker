@@ -1,6 +1,8 @@
 export type Orientation = 'portrait' | 'landscape' | 'grid'
 export type ToolTab = 'layout' | 'templates' | 'photos' | 'text' | 'stickers' | 'background' | 'projects'
-export type SelectedElement = { type: 'slot' | 'text' | 'sticker'; id: string } | null
+export type CaptionField = 'topCaption' | 'bottomCaption'
+export type CaptionStyle = { fontFamily?: string; fontSize?: number; fill?: string }
+export type SelectedElement = { type: 'slot' | 'text' | 'sticker'; id: string } | { type: 'caption'; id: CaptionField } | null
 
 export interface SlotPhoto {
   id: string
@@ -64,6 +66,7 @@ export interface FrameSettings {
   showDate: boolean
   topCaption: string
   bottomCaption: string
+  captionStyles?: Partial<Record<CaptionField, CaptionStyle>>
 }
 
 export interface EditorDocument {
