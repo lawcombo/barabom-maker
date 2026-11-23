@@ -410,7 +410,7 @@ export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage(
               if (textNode) onEditText?.(item, textNode)
             }}
             onDragStart={() => onSelect({ type:'text', id:item.id })}
-            onDragMove={(event) => centerGuides.update(event.evt, event.currentTarget as Konva.Group)}
+            dragBoundFunc={centerGuides.boundPosition}
             onDragEnd={(event) => {
               centerGuides.clear()
               onTextChange(item.id, { x:event.currentTarget.x(), y:event.currentTarget.y() })

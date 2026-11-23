@@ -140,7 +140,7 @@ function ImageContent({ element, selected, exporting, onSelect, onChange }: {
   </Group>
 }
 
-function ElementNode({ element, selected, exporting, onSelect, onEditText, tapToReplacePhoto, onChange, onRequestImage, onTextDrag, onTextDragEnd }: {
+function ElementNode({ element, selected, exporting, onSelect, onEditText, tapToReplacePhoto, onChange, onRequestImage, textDragBounds, onTextDragEnd }: {
   element:PosterElement
   selected:boolean
   exporting:boolean
@@ -149,7 +149,7 @@ function ElementNode({ element, selected, exporting, onSelect, onEditText, tapTo
   tapToReplacePhoto: boolean
   onChange:(patch:Partial<PosterElement>)=>void
   onRequestImage:()=>void
-  onTextDrag:(event: Event, group: Konva.Group)=>void
+  textDragBounds:Konva.NodeConfig['dragBoundFunc']
   onTextDragEnd:()=>void
 }) {
   const nodeRef=useRef<Konva.Group>(null)
@@ -190,7 +190,7 @@ function ElementNode({ element, selected, exporting, onSelect, onEditText, tapTo
       onClick={(event) => selectElement(event, false)}
       onTap={(event) => selectElement(event, true)}
       onDragStart={onSelect}
-      onDragMove={element.kind === 'text' ? (event) => onTextDrag(event.evt, event.currentTarget as Konva.Group) : undefined}
+      dragBoundFunc={element.kind === 'text' ? textDragBounds : undefined}
       onDragEnd={(event)=>{
         if (element.kind === 'text') onTextDragEnd()
         onChange({x:event.currentTarget.x(),y:event.currentTarget.y()})
@@ -303,7 +303,7 @@ export const PosterCanvas=forwardRef<PosterCanvasHandle,Props>(function PosterCa
         {document.elements.map((element)=><ElementNode key={element.id} element={element} selected={!exporting&&selectedId===element.id}
           exporting={exporting} onSelect={()=>onSelect(element.id)} onEditText={onEditText} tapToReplacePhoto={tapToReplacePhoto}
           onChange={(patch)=>onChange(element.id,patch)} onRequestImage={()=>onRequestImage(element.id)}
-          onTextDrag={centerGuides.update} onTextDragEnd={centerGuides.clear}/>) }
+          textDragBounds={centerGuides.boundPosition} onTextDragEnd={centerGuides.clear}/>) }
         {dropTarget?.kind === 'image' && !exporting && <Shape
           x={dropTarget.x} y={dropTarget.y} rotation={dropTarget.rotation}
           fill="#ede9fe55" stroke="#7c3aed" strokeWidth={4} listening={false}
