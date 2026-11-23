@@ -1,4 +1,4 @@
-import type { PosterElement, PosterPreset, PosterSize, PosterTextElement } from './types'
+import type { PosterElement, PosterImageElement, PosterPreset, PosterSize, PosterTextElement } from './types'
 
 export const POSTER_WIDTH = 720
 
@@ -16,7 +16,7 @@ export const posterSizes: Record<PosterPreset, PosterSize> = {
 
 export const posterAsset = (fileName:string) => `${import.meta.env.BASE_URL}poster-assets/${fileName}`
 
-export const base = (kind: PosterElement['kind'], id: string, name: string, x: number, y: number, width: number, height: number) => ({
+const base = (kind: PosterElement['kind'], id: string, name: string, x: number, y: number, width: number, height: number) => ({
   kind, id, name, x, y, width, height, rotation:0, opacity:1, visible:true, locked:false,
 })
 
@@ -27,3 +27,28 @@ export const text = (id:string, name:string, value:string, x:number, y:number, w
 export const shape = (id:string, name:string, shapeType:'rect'|'circle'|'line'|'banner', x:number, y:number, width:number, height:number, fill:string, radius=0): PosterElement => ({
   ...base('shape',id,name,x,y,width,height), shape:shapeType, fill, stroke:'transparent', strokeWidth:0, radius,
 }) as PosterElement
+
+export const slot = (id:string, name:string, x:number, y:number, width:number, height:number, rotation=0): PosterImageElement => ({
+  ...base('image',id,name,x,y,width,height), kind:'image', src:'', isSlot:true, mask:'rect', rotation,
+  zoom:1, offsetX:0, offsetY:0, flipX:false, flipY:false, brightness:0, contrast:0, saturation:0, filter:'none',
+})
+
+export function copy(
+  name: string, value: string, x: number, y: number, width: number, height: number,
+  fontSize: number, fill: string, options: {
+    font?: string; align?: PosterTextElement['align']; regular?: boolean
+  } = {},
+) {
+  return {
+    ...text(name, name, value, x + width / 2, y + height / 2, width, height, fontSize, fill,
+      options.font, options.align, options.regular ? 'normal' : 'bold'),
+    lineHeight: 1.25,
+  }
+}
+
+export const centered = { align: 'center' } as const
+export const body = { regular: true }
+export const block = (name: string, x: number, y: number, width: number, height: number, fill: string, radius = 0) =>
+  shape(name, name, 'rect', x + width / 2, y + height / 2, width, height, fill, radius)
+export const disc = (name: string, x: number, y: number, diameter: number, fill: string) =>
+  shape(name, name, 'circle', x + diameter / 2, y + diameter / 2, diameter, diameter, fill)

@@ -1,16 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { generalPosterTemplates } from './generalTemplates'
+import { photoPosterTemplates } from './photoTemplates'
 import { documentFromTemplate, posterCategories, posterTemplates } from './templates'
 
 describe('poster templates', () => {
   it('keeps the 18 categories and includes the additional frame designs', () => {
     expect(posterCategories).toHaveLength(19)
-    expect(posterTemplates).toHaveLength(87)
+    expect(posterTemplates).toHaveLength(107)
     for (const category of posterCategories.slice(1)) {
       expect(posterTemplates.filter((template) => template.category === category).length).toBeGreaterThanOrEqual(3)
       expect(posterTemplates.filter((template) => template.category === category && template.kind === 'poster').length).toBeGreaterThanOrEqual(3)
+      expect(posterTemplates.filter((template) => template.category === category && template.kind === 'frame').length).toBeGreaterThanOrEqual(2)
     }
-    expect(posterTemplates.filter((template) => template.kind === 'frame')).toHaveLength(28)
+    expect(posterTemplates.filter((template) => template.kind === 'frame')).toHaveLength(48)
     expect(posterTemplates.filter((template) => template.category === '공지사항' && template.kind === 'poster')).toHaveLength(8)
   })
 
@@ -24,7 +26,6 @@ describe('poster templates', () => {
       }
       const images = template.elements.filter((element) => element.kind === 'image')
       if (template.kind === 'frame') {
-        expect(template.background.type).toBe('image')
         expect(images.length).toBeGreaterThan(0)
         expect(images.every((image) => image.isSlot && image.src === '')).toBe(true)
       } else {
@@ -34,17 +35,16 @@ describe('poster templates', () => {
     }
   })
 
-  it('fits each new general design within its artboard and names the editable layers', () => {
-    for (const template of generalPosterTemplates) {
+  it('fits each new design within its artboard and keeps the copy editable', () => {
+    for (const template of [...generalPosterTemplates, ...photoPosterTemplates]) {
       const { width, height } = template.size
-      expect(template.kind).toBe('poster')
       expect(new Set(template.elements.map((element) => element.id)).size).toBe(template.elements.length)
       for (const element of template.elements) {
         expect(element.x - element.width / 2, template.id).toBeGreaterThanOrEqual(0)
         expect(element.y - element.height / 2, template.id).toBeGreaterThanOrEqual(0)
         expect(element.x + element.width / 2, template.id).toBeLessThanOrEqual(width)
         expect(element.y + element.height / 2, template.id).toBeLessThanOrEqual(height)
-        if (element.kind === 'text') expect(element.locked, element.name).toBe(false)
+        if (element.kind === 'text' || element.kind === 'image') expect(element.locked, element.name).toBe(false)
       }
     }
   })

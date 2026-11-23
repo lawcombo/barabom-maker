@@ -1,29 +1,9 @@
-import { posterAsset, posterSizes, shape, text } from './templateParts'
-import type { PosterBackground, PosterElement, PosterPreset, PosterTemplate, PosterTextElement } from './types'
+import { block, body, centered, copy, disc, posterAsset, posterSizes } from './templateParts'
+import type { PosterBackground, PosterElement, PosterPreset, PosterTemplate } from './types'
 
 const display = 'Black Han Sans'
 const serif = 'Gowun Batang'
 const rounded = 'Jua'
-
-function copy(
-  name: string, value: string, x: number, y: number, width: number, height: number,
-  fontSize: number, fill: string, options: {
-    font?: string; align?: PosterTextElement['align']; regular?: boolean
-  } = {},
-) {
-  return {
-    ...text(name, name, value, x + width / 2, y + height / 2, width, height, fontSize, fill,
-      options.font, options.align, options.regular ? 'normal' : 'bold'),
-    lineHeight: 1.25,
-  }
-}
-
-const centered = { align: 'center' } as const
-const body = { regular: true }
-const block = (name: string, x: number, y: number, width: number, height: number, fill: string, radius = 0) =>
-  shape(name, name, 'rect', x + width / 2, y + height / 2, width, height, fill, radius)
-const disc = (name: string, x: number, y: number, diameter: number, fill: string) =>
-  shape(name, name, 'circle', x + diameter / 2, y + diameter / 2, diameter, diameter, fill)
 
 function poster(
   id: string, name: string, category: string, color: string, elements: PosterElement[],

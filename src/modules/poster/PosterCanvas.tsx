@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import Konva from 'konva'
-import { Arrow, Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text, Transformer } from 'react-konva'
+import { Arrow, Circle, Group, Image as KonvaImage, Layer, Line, Rect, Shape, Stage, Text, Transformer } from 'react-konva'
 import useImage from 'use-image'
 import { PHOTO_ZOOM, zoomFromWheel } from '../../lib/photoZoom'
 import type { PosterCanvasHandle, PosterDocument, PosterElement, PosterImageElement } from './types'
@@ -9,6 +9,15 @@ import { clampSlotPhotoOffset, findPhotoSlotAt } from './photoSlots'
 import './poster-canvas.css'
 
 const emptyPhotoSlotName = 'empty-photo-slot'
+
+function photoSlotPath(ctx: Konva.Context, { width, height, mask }: PosterImageElement) {
+  ctx.beginPath()
+  if (mask === 'circle') ctx.arc(0, 0, Math.min(width, height) / 2, 0, Math.PI * 2)
+  else if (mask === 'oval') ctx.ellipse(0, 0, width / 2, height / 2, 0, 0, Math.PI * 2)
+  else if (mask === 'round') ctx.roundRect(-width / 2, -height / 2, width, height, Math.min(28, width * .08, height * .08))
+  else ctx.rect(-width / 2, -height / 2, width, height)
+  ctx.closePath()
+}
 
 interface Props {
   document: PosterDocument
@@ -47,15 +56,7 @@ function ImageContent({ element, selected, exporting, onSelect, onChange }: {
 }) {
   const [image] = useImage(element.src)
   const imageRef = useRef<Konva.Image>(null)
-  const clip = (ctx: Konva.Context) => {
-    const w=element.width, h=element.height
-    ctx.beginPath()
-    if (element.mask === 'circle') ctx.arc(0,0,Math.min(w,h)/2,0,Math.PI*2)
-    else if (element.mask === 'oval') ctx.ellipse(0,0,w/2,h/2,0,0,Math.PI*2)
-    else if (element.mask === 'round') ctx.roundRect(-w/2,-h/2,w,h,Math.min(28,w*.08,h*.08))
-    else ctx.rect(-w/2,-h/2,w,h)
-    ctx.closePath()
-  }
+  const clip = (ctx: Konva.Context) => photoSlotPath(ctx, element)
   useEffect(() => {
     const node=imageRef.current
     if (!node || !image) return
@@ -278,7 +279,11 @@ export const PosterCanvas=forwardRef<PosterCanvasHandle,Props>(function PosterCa
       <Layer>
         <Background document={document}/>
         {document.elements.map((element)=><ElementNode key={element.id} element={element} selected={!exporting&&selectedId===element.id} exporting={exporting} onSelect={()=>onSelect(element.id)} onChange={(patch)=>onChange(element.id,patch)} onRequestImage={()=>onRequestImage(element.id)}/>) }
-        {dropTarget && !exporting && <Rect x={dropTarget.x} y={dropTarget.y} width={dropTarget.width} height={dropTarget.height} offsetX={dropTarget.width/2} offsetY={dropTarget.height/2} rotation={dropTarget.rotation} fill="#ede9fe55" stroke="#7c3aed" strokeWidth={4} listening={false}/>}
+        {dropTarget?.kind === 'image' && !exporting && <Shape
+          x={dropTarget.x} y={dropTarget.y} rotation={dropTarget.rotation}
+          fill="#ede9fe55" stroke="#7c3aed" strokeWidth={4} listening={false}
+          sceneFunc={(ctx, guide) => { photoSlotPath(ctx, dropTarget); ctx.fillStrokeShape(guide) }}
+        />}
         {showSafeArea&&!exporting&&<Rect x={28} y={28} width={document.size.width-56} height={document.size.height-56} stroke="#ef4444" strokeWidth={1.5} dash={[10,7]} opacity={.65} listening={false}/>} 
       </Layer>
     </Stage>

@@ -1,6 +1,7 @@
-import type { PosterDocument, PosterElement, PosterImageElement, PosterPreset, PosterTemplate } from './types'
+import type { PosterDocument, PosterElement, PosterPreset, PosterTemplate } from './types'
 import { generalPosterTemplates } from './generalTemplates'
-import { base, posterAsset, posterSizes, shape, text } from './templateParts'
+import { photoPosterTemplates } from './photoTemplates'
+import { posterAsset, posterSizes, shape, slot, text } from './templateParts'
 
 export { POSTER_WIDTH, posterSizes } from './templateParts'
 
@@ -25,10 +26,6 @@ const categories = [
   ['감성·빈티지','OLD DAYS','천천히 오래 남는 기록','#5c4636','#bf8a63','#f1e5d2','✣','vintage-camera.webp'],
 ] as const
 
-const slot = (id:string, name:string, x:number, y:number, width:number, height:number, rotation=0): PosterImageElement => ({
-  ...base('image',id,name,x,y,width,height), kind:'image', src:'', isSlot:true, mask:'rect', rotation,
-  zoom:1, offsetX:0, offsetY:0, flipX:false, flipY:false, brightness:0, contrast:0, saturation:0, filter:'none',
-})
 
 const templatesWithCustomArtwork: Record<number, { name:string; file:string; title:string; accent:string }> = {
   0: { name:'시트러스 서머', file:'poster-citrus.jpg', title:'여름의 조각', accent:'#123f3c' },
@@ -271,6 +268,7 @@ function makeGalleryCollection(): PosterTemplate[] {
 
 export const posterTemplates: PosterTemplate[] = [
   ...generalPosterTemplates,
+  ...photoPosterTemplates,
   ...makeGalleryCollection(),
   ...categories.flatMap((_, categoryIndex) => [0,1,2].map((variant) => makeTemplate(categoryIndex, variant))),
   ...extraFrames.map(makeExtraFrame),
