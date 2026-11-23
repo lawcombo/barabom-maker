@@ -13,7 +13,8 @@ describe('poster templates', () => {
   it('uses unique ids and editable layer data', () => {
     expect(new Set(posterTemplates.map((template) => template.id)).size).toBe(54)
     for (const template of posterTemplates) {
-      expect(template.elements.some((element) => element.kind === 'image')).toBe(true)
+      const image = template.elements.find((element) => element.kind === 'image')
+      expect(image?.kind === 'image' && image.src.endsWith('.webp')).toBe(true)
       expect(template.elements.some((element) => element.kind === 'text')).toBe(true)
     }
   })

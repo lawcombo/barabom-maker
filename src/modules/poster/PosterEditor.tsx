@@ -8,7 +8,7 @@ import {
   Undo2, Unlock, Upload, Wallpaper, ZoomIn, ZoomOut,
 } from 'lucide-react'
 import { PosterCanvas } from './PosterCanvas'
-import { createBlankPoster, documentFromTemplate, posterSizes, posterTemplates } from './templates'
+import { createBlankPoster, documentFromTemplate, posterCategories, posterSizes, posterTemplates } from './templates'
 import { clonePosterElement, downloadDataUrl, posterEmojis, posterFonts, readPosterImage } from './utils'
 import {
   deletePosterProject, duplicatePosterProject, exportPosterProject, importPosterProject, listPosterProjects,
@@ -38,6 +38,7 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
   const [document,setDocument]=useState<PosterDocument>(()=>initialDocument??createBlankPoster())
   const [selectedId,setSelectedId]=useState<string|null>(null)
   const [tab,setTab]=useState<PosterTab>('templates')
+  const [templateCategory,setTemplateCategory]=useState('전체')
   const [history,setHistory]=useState<PosterDocument[]>([])
   const [future,setFuture]=useState<PosterDocument[]>([])
   const [projects,setProjects]=useState<PosterDocument[]>([])
@@ -57,9 +58,11 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
   const backgroundInputRef=useRef<HTMLInputElement>(null)
   const stickerInputRef=useRef<HTMLInputElement>(null)
   const projectInputRef=useRef<HTMLInputElement>(null)
+  const templateInputRef=useRef<HTMLInputElement>(null)
   const uploadTarget=useRef<string|null>(null)
 
   const selected=useMemo(()=>document.elements.find((item)=>item.id===selectedId)??null,[document.elements,selectedId])
+  const visibleTemplates=useMemo(()=>templateCategory==='전체'?posterTemplates:posterTemplates.filter((template)=>template.category===templateCategory),[templateCategory])
   const refreshProjects=useCallback(()=>listPosterProjects().then(setProjects),[])
   const commit=useCallback((updater:(current:PosterDocument)=>PosterDocument,record=true)=>{
     setDocument((current)=>{const next={...updater(current),updatedAt:Date.now()};if(record){setHistory((items)=>[...items.slice(-59),current]);setFuture([])}return next})
@@ -118,6 +121,14 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
     return {...current,size:{...current.size,dpi,outputWidth:Math.round(widthMm/25.4*dpi),outputHeight:Math.round(heightMm/25.4*dpi)}}
   })
   const applyTemplate=(templateId:string)=>{const template=posterTemplates.find((item)=>item.id===templateId);if(!template)return;const next=documentFromTemplate(template);next.id=document.id;next.name=document.name;commit(()=>next);setSelectedId(null)}
+  const uploadTemplate=async(file:File)=>{
+    const src=await readPosterImage(file)
+    const next=createBlankPoster('a4-portrait')
+    next.id=document.id
+    next.name=file.name.replace(/\.[^.]+$/,'')
+    next.background={type:'image',color:'#ffffff',secondary:'#ffffff',imageSrc:src,opacity:1}
+    commit(()=>next);setSelectedId(null);setStatus('업로드한 템플릿을 적용했어요')
+  }
   const newProject=()=>{if(window.confirm('현재 작업은 자동 저장됩니다. 새 포스터를 시작할까요?')){setDocument(createBlankPoster());setSelectedId(null);setHistory([]);setFuture([])}}
   const capture=async(format:'png'|'jpeg'='png',pixelRatio?:number)=>{
     await window.document.fonts?.ready;setExporting(true);await new Promise((resolve)=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))
@@ -139,7 +150,7 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
   const printPoster=async()=>{const url=await capture('png');const popup=window.open('','_blank','width=900,height=900');if(!popup){setStatus('인쇄 팝업을 허용해 주세요');return}popup.document.write(`<!doctype html><html><head><title>${document.name}</title><style>@page{margin:0}body{margin:0;display:grid;place-items:center}img{max-width:100%;max-height:100vh}</style></head><body><img src="${url}" onload="setTimeout(()=>print(),300)"></body></html>`);popup.document.close()}
 
   const renderTab=()=>{
-    if(tab==='templates')return <><PanelTitle title="템플릿" text="54가지 디자인을 클릭하면 바로 적용됩니다."/><div className="poster-tab-grid">{posterTemplates.map((template)=><button key={template.id} className="poster-mini-template" style={{background:template.background.color}} onClick={()=>applyTemplate(template.id)}><strong>{template.name}</strong><span style={{borderColor:template.background.secondary}}/></button>)}</div></>
+    if(tab==='templates')return <><PanelTitle title="템플릿" text="카테고리를 고르고 디자인을 바로 적용하세요."/><button className="poster-button primary poster-template-upload" onClick={()=>templateInputRef.current?.click()}><Upload size={15}/> 내 템플릿 업로드</button><label className="poster-label">카테고리</label><select className="poster-select" value={templateCategory} onChange={(event)=>setTemplateCategory(event.target.value)}>{posterCategories.map((category)=><option key={category} value={category}>{category}{category==='전체'?` · ${posterTemplates.length}종`:` · ${posterTemplates.filter((template)=>template.category===category).length}종`}</option>)}</select><div className="poster-template-categories">{posterCategories.map((category)=><button key={category} className={templateCategory===category?'active':''} onClick={()=>setTemplateCategory(category)}>{category}</button>)}</div><div className="poster-template-result"><strong>{templateCategory}</strong><span>{visibleTemplates.length}개 디자인</span></div><div className="poster-tab-grid">{visibleTemplates.map((template)=>{const photo=template.elements.find((item)=>item.kind==='image');return <button key={template.id} className="poster-mini-template" style={{background:template.background.color}} onClick={()=>applyTemplate(template.id)}>{photo&&photo.kind==='image'&&photo.src&&<img src={photo.src} alt="" loading="lazy"/>}<span className="poster-mini-shade"/><strong>{template.name}</strong><em>{template.size.width>template.size.height?'가로형':'세로형'}</em></button>})}</div></>
     if(tab==='photos')return <><PanelTitle title="사진과 로고" text="사진을 추가하거나 빈 이미지 영역을 만드세요."/><div className="poster-grid-2"><button className="poster-button" onClick={()=>requestImage()}><ImagePlus size={16}/> 사진 추가</button><button className="poster-button" onClick={addSlot}><Square size={16}/> 영역 추가</button></div><button className="poster-button poster-section" onClick={()=>backgroundInputRef.current?.click()}><Wallpaper size={16}/> 내 포스터를 배경으로</button><label className="poster-label">QR코드</label><input className="poster-input" value={qrValue} onChange={(event)=>setQrValue(event.target.value)} placeholder="https://..."/><button className="poster-button poster-section" onClick={()=>void addQr()}><QrCode size={16}/> 실제 QR코드 삽입</button></>
     if(tab==='text')return <><PanelTitle title="텍스트" text="용도에 맞는 텍스트 상자를 추가하세요."/><div className="poster-grid-2"><button className="poster-button" onClick={()=>addElement(newText(document,'title'))}>제목</button><button className="poster-button" onClick={()=>addElement(newText(document,'subtitle'))}>부제목</button><button className="poster-button" onClick={()=>addElement(newText(document,'body'))}>본문</button><button className="poster-button" onClick={()=>addElement(newText(document,'sale'))}>50% OFF</button></div><label className="poster-label">스타일 문구</label>{['GRAND OPEN','SPECIAL EVENT','NEW MENU','HAPPY BIRTHDAY','모집 안내','특별 할인'].map((value)=><button key={value} className="poster-button poster-section" onClick={()=>{const element=newText(document,'title');element.text=value;addElement(element)}}>{value}</button>)}</>
     if(tab==='stickers')return <><PanelTitle title="스티커" text="이모티콘 또는 투명 PNG를 추가하세요."/><div className="poster-emoji-grid">{posterEmojis.map((emoji)=><button key={emoji} onClick={()=>addSticker(emoji)}>{emoji}</button>)}</div><button className="poster-button poster-section" onClick={()=>stickerInputRef.current?.click()}><Upload size={16}/> 내 스티커 업로드</button></>
@@ -165,6 +176,7 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
     <input ref={backgroundInputRef} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={async(event)=>{const file=event.target.files?.[0];if(file){const src=await readPosterImage(file);commit((d)=>({...d,background:{...d.background,type:'image',imageSrc:src}}))}event.target.value=''}}/>
     <input ref={stickerInputRef} hidden type="file" accept="image/png,image/webp" onChange={async(event)=>{const file=event.target.files?.[0];if(file)addSticker(await readPosterImage(file),'image');event.target.value=''}}/>
     <input ref={projectInputRef} hidden type="file" accept=".json,.barabom-poster.json" onChange={async(event)=>{const file=event.target.files?.[0];if(file){try{setDocument(await importPosterProject(file));setStatus('프로젝트를 가져왔어요')}catch{setStatus('올바른 포스터 파일이 아니에요')}}event.target.value=''}}/>
+    <input ref={templateInputRef} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={(event)=>{const file=event.target.files?.[0];if(file)void uploadTemplate(file);event.target.value=''}}/>
     <header className="poster-header">
       <button className="poster-header-brand" onClick={onExit}><img src={`${import.meta.env.BASE_URL}barabom-mark.svg`} alt=""/><div><strong>너를, 바라봄</strong><span>POSTER STUDIO</span></div></button>
       <div className="poster-header-name"><input aria-label="프로젝트 이름" value={document.name} onChange={(event)=>commit((d)=>({...d,name:event.target.value}),false)}/><span style={{fontSize:11,color:'#94a3b8'}}>{status}</span></div>
