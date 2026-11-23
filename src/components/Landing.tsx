@@ -1,6 +1,6 @@
 import { ArrowUpRight, Images, WandSparkles } from 'lucide-react'
 
-export function Landing({ onStart }: { onStart: () => void }) {
+export function Landing({ onStart, onPosterStart }: { onStart: () => void; onPosterStart: () => void }) {
   return (
     <main className="min-h-screen overflow-hidden bg-[#f8f7fb] text-slate-950">
       <header className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-10">
@@ -22,10 +22,10 @@ export function Landing({ onStart }: { onStart: () => void }) {
             </div>
             <div className="absolute inset-x-7 bottom-7"><div className="mb-3 flex items-center justify-between"><span className="rounded-full bg-white/10 px-3 py-1 text-xs">바로 만들기</span><ArrowUpRight className="transition group-hover:rotate-45"/></div><h2 className="text-2xl font-bold">인생네컷 만들기</h2><p className="mt-2 text-sm leading-6 text-white/60">사진 여러 장을 감각적인 프레임에 담아보세요.</p></div>
           </button>
-          <div className="relative min-h-[430px] overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-7 text-left shadow-soft">
+          <button onClick={onPosterStart} className="group relative min-h-[430px] overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-7 text-left shadow-soft transition hover:-translate-y-1 hover:border-amber-300">
             <div className="absolute inset-x-8 top-8 h-[270px] rotate-3 rounded-xl bg-gradient-to-br from-amber-100 via-orange-100 to-rose-200 p-6 text-center text-slate-800 opacity-75"><p className="text-xs font-bold tracking-[.3em]">WEEKEND</p><p className="mt-12 font-serif text-4xl italic">Summer<br/>Archive</p><div className="mx-auto mt-7 h-1 w-12 bg-slate-800"/></div>
-            <div className="absolute inset-x-7 bottom-7"><div className="mb-3 flex items-center justify-between"><span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">준비 중</span><Images className="text-slate-300"/></div><h2 className="text-2xl font-bold text-slate-500">포스터 만들기</h2><p className="mt-2 text-sm leading-6 text-slate-400">더 자유로운 포스터 편집 기능을 준비하고 있어요.</p></div>
-          </div>
+            <div className="absolute inset-x-7 bottom-7"><div className="mb-3 flex items-center justify-between"><span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">54가지 템플릿</span><Images className="text-amber-500 transition group-hover:scale-110"/></div><h2 className="text-2xl font-bold text-slate-800">포스터 만들기</h2><p className="mt-2 text-sm leading-6 text-slate-500">사진·글씨·스티커를 자유롭게 배치하고 고해상도로 저장하세요.</p></div>
+          </button>
         </div>
       </section>
     </main>
