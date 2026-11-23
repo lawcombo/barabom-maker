@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import Konva from 'konva'
 import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva'
 import useImage from 'use-image'
+import { useTextCenterGuides } from './TextCenterGuides'
 import { ARTBOARD, getDesignedLayout, getLayoutRects, pointInPhotoSlot, scallopOutline } from '../data/layouts'
 import { templateById } from '../data/templates'
 import { PHOTO_ZOOM, zoomFromWheel } from '../lib/photoZoom'
@@ -254,6 +255,7 @@ export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage(
   const [dropTargetIndex, setDropTargetIndex] = useState(-1)
   const pinch = useRef<{ distance: number; index: number } | null>(null)
   const artboard = ARTBOARD[document.orientation]
+  const centerGuides = useTextCenterGuides(artboard.width, artboard.height, viewScale)
   const template = templateById(document.templateId)
   const layout = getDesignedLayout(document, template)
   const rects = useMemo(() => layout?.slots ?? getLayoutRects(document.cutCount, document.orientation, document.frame.padding, document.frame.gap),
@@ -408,7 +410,11 @@ export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage(
               if (textNode) onEditText?.(item, textNode)
             }}
             onDragStart={() => onSelect({ type:'text', id:item.id })}
-            onDragEnd={(event) => onTextChange(item.id, { x:event.target.x(), y:event.target.y() })}
+            onDragMove={(event) => centerGuides.update(event.evt, event.currentTarget as Konva.Group)}
+            onDragEnd={(event) => {
+              centerGuides.clear()
+              onTextChange(item.id, { x:event.currentTarget.x(), y:event.currentTarget.y() })
+            }}
           >
             {item.background !== 'transparent' && <Rect x={-6} y={-4} width={item.width + 12} height={item.fontSize * item.lineHeight + 8} fill={item.background} cornerRadius={4}/>}
             <Text
@@ -438,6 +444,7 @@ export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage(
           {dropTarget && !exporting && <SlotSurface rect={dropTarget} radius={document.frame.radius} fill="#ede9fe55"
             stroke="#7c3aed" strokeWidth={4} listening={false}/>}
           {showSafeArea && <Rect x={18} y={18} width={artboard.width - 36} height={artboard.height - 36} stroke="#ef4444" strokeWidth={1} dash={[8,6]} opacity={.75} listening={false}/>} 
+          {!exporting && centerGuides.overlay}
         </Layer>
       </Stage>
     </div>

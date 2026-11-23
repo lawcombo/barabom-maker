@@ -3,6 +3,7 @@ import { X } from 'lucide-react'
 import Konva from 'konva'
 import { Arrow, Circle, Group, Image as KonvaImage, Layer, Line, Rect, Shape, Stage, Text, Transformer } from 'react-konva'
 import useImage from 'use-image'
+import { useTextCenterGuides } from '../../components/TextCenterGuides'
 import { PHOTO_ZOOM, zoomFromWheel } from '../../lib/photoZoom'
 import type { PosterCanvasHandle, PosterDocument, PosterElement, PosterImageElement, PosterTextElement } from './types'
 import { clampSlotPhotoOffset, findPhotoSlotAt } from './photoSlots'
@@ -139,7 +140,7 @@ function ImageContent({ element, selected, exporting, onSelect, onChange }: {
   </Group>
 }
 
-function ElementNode({ element, selected, exporting, onSelect, onEditText, tapToReplacePhoto, onChange, onRequestImage }: {
+function ElementNode({ element, selected, exporting, onSelect, onEditText, tapToReplacePhoto, onChange, onRequestImage, onTextDrag, onTextDragEnd }: {
   element:PosterElement
   selected:boolean
   exporting:boolean
@@ -148,6 +149,8 @@ function ElementNode({ element, selected, exporting, onSelect, onEditText, tapTo
   tapToReplacePhoto: boolean
   onChange:(patch:Partial<PosterElement>)=>void
   onRequestImage:()=>void
+  onTextDrag:(event: Event, group: Konva.Group)=>void
+  onTextDragEnd:()=>void
 }) {
   const nodeRef=useRef<Konva.Group>(null)
   const transformerRef=useRef<Konva.Transformer>(null)
@@ -187,7 +190,11 @@ function ElementNode({ element, selected, exporting, onSelect, onEditText, tapTo
       onClick={(event) => selectElement(event, false)}
       onTap={(event) => selectElement(event, true)}
       onDragStart={onSelect}
-      onDragEnd={(event)=>onChange({x:event.currentTarget.x(),y:event.currentTarget.y()})}
+      onDragMove={element.kind === 'text' ? (event) => onTextDrag(event.evt, event.currentTarget as Konva.Group) : undefined}
+      onDragEnd={(event)=>{
+        if (element.kind === 'text') onTextDragEnd()
+        onChange({x:event.currentTarget.x(),y:event.currentTarget.y()})
+      }}
       onTransformEnd={finishTransform}
     >
       {element.kind==='image'&&<ImageContent element={element} selected={selected} exporting={exporting} onSelect={onSelect} onChange={onChange}/>}
@@ -227,6 +234,7 @@ export const PosterCanvas=forwardRef<PosterCanvasHandle,Props>(function PosterCa
   const deleteButtonRef = useRef<HTMLButtonElement>(null)
   const [hoveredSlotId, setHoveredSlotId] = useState<string | null>(null)
   const {width, height} = document.size
+  const centerGuides = useTextCenterGuides(width, height, scale)
   useImperativeHandle(ref, () => ({
     toDataURL: (mimeType, pixelRatio, quality=.95, outputSize) => {
       const stage = stageRef.current
@@ -294,13 +302,15 @@ export const PosterCanvas=forwardRef<PosterCanvasHandle,Props>(function PosterCa
         <Background document={document}/>
         {document.elements.map((element)=><ElementNode key={element.id} element={element} selected={!exporting&&selectedId===element.id}
           exporting={exporting} onSelect={()=>onSelect(element.id)} onEditText={onEditText} tapToReplacePhoto={tapToReplacePhoto}
-          onChange={(patch)=>onChange(element.id,patch)} onRequestImage={()=>onRequestImage(element.id)}/>) }
+          onChange={(patch)=>onChange(element.id,patch)} onRequestImage={()=>onRequestImage(element.id)}
+          onTextDrag={centerGuides.update} onTextDragEnd={centerGuides.clear}/>) }
         {dropTarget?.kind === 'image' && !exporting && <Shape
           x={dropTarget.x} y={dropTarget.y} rotation={dropTarget.rotation}
           fill="#ede9fe55" stroke="#7c3aed" strokeWidth={4} listening={false}
           sceneFunc={(ctx, guide) => { photoSlotPath(ctx, dropTarget); ctx.fillStrokeShape(guide) }}
         />}
         {showSafeArea&&!exporting&&<Rect x={28} y={28} width={document.size.width-56} height={document.size.height-56} stroke="#ef4444" strokeWidth={1.5} dash={[10,7]} opacity={.65} listening={false}/>} 
+        {!exporting && centerGuides.overlay}
       </Layer>
     </Stage>
     {deleteTarget && <button
