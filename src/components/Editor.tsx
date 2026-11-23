@@ -21,7 +21,16 @@ const tabs: Array<{ id: ToolTab; label: string; icon: typeof LayoutGrid }> = [
 ]
 
 const fonts = ['Noto Sans KR', 'Noto Serif KR', 'Gaegu', 'Arial', 'Georgia']
-const stickerGroups = ['♥','★','✦','✿','🎀','💬','👑','🎂','🎉','🌸','☀️','🍁','❄️','😊','🐰','○','△','→']
+const stickerCategories = [
+  { id:'hearts', label:'하트', items:['♥','♡','❤','🩷','🧡','💛','💚','🩵','💙','💜','🤍','🖤','💖','💕','💞','💘'] },
+  { id:'sparkles', label:'별·반짝', items:['★','☆','✦','✧','✨','🌟','⭐','💫','⚡','☀️','🌙','☁️','🌈','🔥','💎','🪄'] },
+  { id:'nature', label:'꽃·자연', items:['✿','❀','🌸','🌼','🌻','🌹','🌷','🪻','🍀','🌿','🍃','🍁','🍂','❄️','🦋','🐚'] },
+  { id:'party', label:'파티', items:['🎂','🎉','🎊','🎈','🎁','🥳','🍰','🧁','🍾','🥂','🎵','🎶','📸','🎤','🪩','🎆'] },
+  { id:'faces', label:'표정·동물', items:['😊','😍','🥰','😎','🤩','😘','😆','🥹','🐰','🐻','🐶','🐱','🐥','🦊','🐼','🐾'] },
+  { id:'decor', label:'리본·소품', items:['🎀','👑','💍','💌','💬','🗯️','📍','📅','🕶️','☕','🍓','🍒','🧸','🫧','🎧','📷'] },
+  { id:'shapes', label:'도형·화살표', items:['○','●','△','▲','□','■','◇','◆','→','←','↑','↓','↗','↘','✓','!'] },
+  { id:'seasons', label:'계절', items:['🌸','☀️','🏖️','🍉','🌊','🍁','🎃','🦇','❄️','☃️','🎄','🎅','🧧','🎇','🌾','🧣'] },
+] as const
 const recommendedTexts = ['OUR MEMORIES','BEST FRIENDS','LOVE YOU','HAPPY BIRTHDAY','FOREVER TOGETHER','오늘의 추억','우리의 네컷','행복한 하루']
 
 function SectionTitle({ title, description }: { title: string; description?: string }) {
@@ -45,6 +54,8 @@ export function Editor({ onExit }: { onExit: () => void }) {
   const [viewZoom, setViewZoom] = useState(1)
   const [fitScale, setFitScale] = useState(.48)
   const [showSafeArea, setShowSafeArea] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const [stickerCategory, setStickerCategory] = useState<string>(stickerCategories[0].id)
   const [downloadOpen, setDownloadOpen] = useState(false)
   const [projects, setProjects] = useState<EditorDocument[]>([])
   const [status, setStatus] = useState('자동 저장 켜짐')
@@ -203,13 +214,23 @@ export function Editor({ onExit }: { onExit: () => void }) {
     commit((current) => ({ ...current, stickers:[...current.stickers, item] })); setSelected({ type:'sticker', id:item.id })
   }
 
+  const captureCanvas = async (mime:'image/png'|'image/jpeg', pixelRatio:number, quality=.96) => {
+    setIsExporting(true)
+    await new Promise<void>((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve())))
+    try {
+      return canvasRef.current?.toDataURL(mime, pixelRatio, quality)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   const exportImage = async (format:'png'|'jpeg'|'pdf') => {
     await window.document.fonts?.ready
     const outputW = Math.round(document.output.widthMm / 25.4 * document.output.dpi)
     const logicalW = canvasRef.current?.size().width || 400
     const pixelRatio = Math.min(8, outputW / (logicalW * fitScale * viewZoom))
     const mime = format === 'jpeg' ? 'image/jpeg' : 'image/png'
-    const url = canvasRef.current?.toDataURL(mime, Math.max(1, pixelRatio), .96)
+    const url = await captureCanvas(mime, Math.max(1, pixelRatio), .96)
     if (!url) return
     if (format === 'pdf') {
       const pdf = new jsPDF({ orientation: document.output.widthMm > document.output.heightMm ? 'landscape' : 'portrait', unit:'mm', format:[document.output.widthMm, document.output.heightMm] })
@@ -223,7 +244,7 @@ export function Editor({ onExit }: { onExit: () => void }) {
 
   const printDesign = async () => {
     await window.document.fonts?.ready
-    const url = canvasRef.current?.toDataURL('image/png', Math.max(2, 1 / (fitScale * viewZoom)))
+    const url = await captureCanvas('image/png', Math.max(2, 1 / (fitScale * viewZoom)))
     if (!url) return
     const popup = window.open('', '_blank', 'width=900,height=900')
     if (!popup) { setStatus('인쇄 미리보기를 위해 팝업을 허용해 주세요'); return }
@@ -236,7 +257,10 @@ export function Editor({ onExit }: { onExit: () => void }) {
     if (tab === 'templates') return <><SectionTitle title="디자인 템플릿" description="사진은 그대로 두고 디자인만 바뀝니다."/><div className="grid grid-cols-2 gap-3">{templates.map((template)=><button key={template.id} onClick={()=>applyTemplate(template.id)} className={`template-card ${document.templateId===template.id?'active':''}`} style={{ background:template.background, color:template.colors[1] }}><span className="template-photos">{[0,1,2,3].map(i=><i key={i} style={{ borderColor:template.borderColor }}/>)}</span><strong>{template.name}</strong><small>{template.category}</small></button>)}</div></>
     if (tab === 'photos') return <><SectionTitle title="사진" description="여러 장을 고르면 빈 컷부터 자동 배치해요."/><button className="primary-btn w-full" onClick={()=>requestUpload()}><ImagePlus size={17}/> 사진 불러오기</button><div className="mt-4 rounded-xl bg-violet-50 p-4 text-xs leading-5 text-violet-700">캔버스의 원하는 컷에 사진 파일을 직접 끌어다 놓을 수도 있어요.</div><div className="mt-5 grid grid-cols-3 gap-2">{document.photos.map((photo,index)=><button key={index} onClick={()=>photo?setSelected({type:'slot',id:String(index)}):requestUpload(index)} className={`photo-tile ${selectedPhotoIndex===index?'active':''}`}>{photo?<img src={photo.src} alt={`${index+1}번 컷`}/>:<Plus/>}<span>{index+1}</span></button>)}</div><button className="secondary-btn mt-5 w-full" onClick={()=>commit(d=>({...d,photos:d.photos.map(()=>null)}))}><Trash2 size={15}/> 모든 사진 비우기</button></>
     if (tab === 'text') return <><SectionTitle title="텍스트" description="캔버스 어디든 문구를 추가할 수 있어요."/><button className="primary-btn w-full" onClick={()=>addText()}><Type size={17}/> 텍스트 추가</button><p className="field-label mt-6">추천 문구</p><div className="flex flex-wrap gap-2">{recommendedTexts.map(text=><button key={text} onClick={()=>addText(text)} className="chip">{text}</button>)}<button onClick={()=>addText(new Intl.DateTimeFormat('ko-KR').format(new Date()))} className="chip">오늘 날짜</button></div></>
-    if (tab === 'stickers') return <><SectionTitle title="스티커" description="클릭해서 추가한 뒤 자유롭게 옮겨보세요."/><div className="grid grid-cols-5 gap-2">{stickerGroups.map(value=><button key={value} onClick={()=>addSticker(value)} className="sticker-btn">{value}</button>)}</div><button className="secondary-btn mt-5 w-full" onClick={()=>stickerInputRef.current?.click()}><Upload size={15}/> 내 PNG 스티커</button></>
+    if (tab === 'stickers') {
+      const category = stickerCategories.find((item) => item.id === stickerCategory) ?? stickerCategories[0]
+      return <><SectionTitle title="스티커" description="카테고리에서 골라 추가한 뒤 자유롭게 옮겨보세요."/><div className="mb-4 flex flex-wrap gap-2">{stickerCategories.map((item)=><button key={item.id} onClick={()=>setStickerCategory(item.id)} className={`chip ${item.id===category.id?'border-violet-400 bg-violet-50 text-violet-700':''}`}>{item.label}</button>)}</div><div className="grid grid-cols-5 gap-2">{category.items.map(value=><button key={value} title={`${value} 스티커 추가`} aria-label={`${value} 스티커 추가`} onClick={()=>addSticker(value)} className="sticker-btn">{value}</button>)}</div><button className="secondary-btn mt-5 w-full" onClick={()=>stickerInputRef.current?.click()}><Upload size={15}/> 내 PNG 스티커</button></>
+    }
     if (tab === 'background') return <><SectionTitle title="프레임 꾸미기"/><label className="color-field">배경색<input type="color" value={document.frame.background} onChange={e=>updateFrame({background:e.target.value})}/></label><label className="color-field">테두리색<input type="color" value={document.frame.borderColor} onChange={e=>updateFrame({borderColor:e.target.value})}/></label><div className="mt-5 space-y-5"><Range label="사진 간격" value={document.frame.gap} min={0} max={40} suffix="px" onChange={gap=>updateFrame({gap})}/><Range label="바깥 여백" value={document.frame.padding} min={8} max={60} suffix="px" onChange={padding=>updateFrame({padding})}/><Range label="모서리" value={document.frame.radius} min={0} max={80} suffix="px" onChange={radius=>updateFrame({radius})}/><Range label="테두리" value={document.frame.borderWidth} min={0} max={12} suffix="px" onChange={borderWidth=>updateFrame({borderWidth})}/></div><label className="toggle-row"><span>장식 표시</span><input type="checkbox" checked={document.frame.showDecorations} onChange={e=>updateFrame({showDecorations:e.target.checked})}/></label><label className="toggle-row"><span>날짜 표시</span><input type="checkbox" checked={document.frame.showDate} onChange={e=>updateFrame({showDate:e.target.checked})}/></label><label className="field-label mt-4">상단 문구<input className="text-input" value={document.frame.topCaption} onChange={e=>updateFrame({topCaption:e.target.value})}/></label><label className="field-label mt-4">하단 문구<input className="text-input" value={document.frame.bottomCaption} onChange={e=>updateFrame({bottomCaption:e.target.value})}/></label></>
     return <><SectionTitle title="내 프로젝트" description="이 브라우저의 IndexedDB에 안전하게 저장됩니다."/><button className="primary-btn w-full" onClick={()=>{ const fresh=createDocument(); setUndoStack([]); setRedoStack([]); setDocument(fresh); setSelected(null) }}><Plus size={17}/> 새 프로젝트</button><div className="mt-4 space-y-2">{projects.map(project=><div key={project.id} className="project-row"><button onClick={async()=>{ const loaded=await loadProject(project.id); if(loaded){setDocument(loaded);setSelected(null)}}}><strong>{project.name}</strong><small>{new Date(project.updatedAt).toLocaleString('ko-KR')}</small></button><IconButton label="삭제" onClick={async()=>{await deleteProject(project.id);setProjects(await listProjects())}}><Trash2 size={15}/></IconButton></div>)}</div><div className="mt-5 grid grid-cols-2 gap-2"><button className="secondary-btn" onClick={()=>exportProjectFile(document)}><ArrowDownToLine size={15}/> 내보내기</button><button className="secondary-btn" onClick={()=>projectInputRef.current?.click()}><Upload size={15}/> 가져오기</button></div></>
   }
@@ -264,7 +288,7 @@ export function Editor({ onExit }: { onExit: () => void }) {
       <nav className="tool-nav">{tabs.map(item=><button key={item.id} className={tab===item.id?'active':''} onClick={()=>{setTab(item.id);setMobilePanel(true)}}><item.icon size={19}/><span>{item.label}</span></button>)}</nav>
       <aside className={`left-panel ${mobilePanel?'mobile-open':''}`}><button className="mobile-close" onClick={()=>setMobilePanel(false)}>닫기</button>{renderTab()}</aside>
       <main ref={workspaceRef} className="workspace" onClick={()=>setMobilePanel(false)}>
-        <div className="canvas-center"><CanvasStage ref={canvasRef} document={document} viewScale={actualScale} selected={selected} showSafeArea={showSafeArea} onSelect={setSelected} onPhotoChange={updatePhoto} onTextChange={updateText} onStickerChange={updateSticker} onRequestUpload={requestUpload} onFilesDropped={addFiles}/></div>
+        <div className="canvas-center"><CanvasStage ref={canvasRef} document={document} viewScale={actualScale} selected={isExporting ? null : selected} showSafeArea={!isExporting && showSafeArea} onSelect={setSelected} onPhotoChange={updatePhoto} onTextChange={updateText} onStickerChange={updateSticker} onRequestUpload={requestUpload} onFilesDropped={addFiles}/></div>
         <div className="zoom-bar"><IconButton label="축소" onClick={()=>setViewZoom(v=>Math.max(.5,v-.1))}><ZoomOut size={16}/></IconButton><span>{Math.round(viewZoom*100)}%</span><IconButton label="확대" onClick={()=>setViewZoom(v=>Math.min(2,v+.1))}><ZoomIn size={16}/></IconButton><button onClick={()=>setViewZoom(1)}><Maximize2 size={14}/> 화면 맞춤</button></div>
       </main>
       <aside className="right-panel">{renderInspector()}</aside>

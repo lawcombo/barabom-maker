@@ -103,9 +103,14 @@ function PhotoNode({ photo, rect, radius, selected, onSelect, onChange }: {
         saturation={photo.saturation / 100}
         onClick={onSelect}
         onTap={onSelect}
-        dragBoundFunc={(position) => clampPosition(position.x, position.y)}
+        onDragStart={onSelect}
+        onDragMove={(event) => {
+          const point = clampPosition(event.target.x(), event.target.y())
+          event.target.position(point)
+        }}
         onDragEnd={(event) => {
           const point = clampPosition(event.target.x(), event.target.y())
+          event.target.position(point)
           onChange({
             ...photo,
             offsetX: point.x - (rect.x + rect.width / 2),
