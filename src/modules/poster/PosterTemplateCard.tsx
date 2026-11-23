@@ -49,7 +49,8 @@ export function PosterTemplateCard({ template, active, onApply }: {
             if (element.kind === 'image' && element.isSlot) {
               return <span className="poster-design-layer poster-design-slot" key={element.id} style={{
                 ...bounds,
-                borderRadius: element.mask === 'oval' || element.mask === 'circle' ? '50%' : undefined,
+                borderRadius: element.mask === 'oval' || element.mask === 'circle' ? '50%'
+                  : element.mask === 'round' ? `${100 * Math.min(28, element.width * .08, element.height * .08) / size.width}cqw` : undefined,
               }}>+</span>
             }
             return null

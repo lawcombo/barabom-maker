@@ -3,10 +3,11 @@ import { jsPDF } from 'jspdf'
 import {
   AlignCenter, ArrowDownToLine, ChevronDown, Copy, Download, FlipHorizontal2, FlipVertical2,
   FolderOpen, Frame, ImagePlus, Images, Layers3, LayoutGrid, Maximize2, Minus, Palette,
-  Plus, Redo2, RotateCcw, RotateCw, Save, Sparkles, Sticker, Trash2, Type,
-  Undo2, Upload, ZoomIn, ZoomOut,
+  Plus, RotateCcw, RotateCw, Sparkles, Sticker, Trash2, Type,
+  Upload, X, ZoomIn, ZoomOut,
 } from 'lucide-react'
 import { CanvasStage, type CanvasHandle } from './CanvasStage'
+import { StudioHeaderActions } from './StudioHeaderActions'
 import { ARTBOARD, layoutLabel } from '../data/layouts'
 import { templateById, templates } from '../data/templates'
 import { createDocument, createPhoto, frameFromTemplate, readImageFile } from '../lib/document'
@@ -73,6 +74,7 @@ export function Editor({ onExit }: { onExit: () => void }) {
   const [templateCategory, setTemplateCategory] = useState('전체')
   const [downloadFormat, setDownloadFormat] = useState<'png'|'jpeg'|'pdf'>('png')
   const [downloadOpen, setDownloadOpen] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState('')
   const [projects, setProjects] = useState<EditorDocument[]>([])
   const [status, setStatus] = useState('자동 저장 켜짐')
   const [mobilePanel, setMobilePanel] = useState(false)
@@ -240,6 +242,35 @@ export function Editor({ onExit }: { onExit: () => void }) {
     }
   }
 
+  const saveCurrentProject = async () => {
+    try {
+      await saveProject(document)
+      setStatus('저장 완료')
+      return true
+    } catch {
+      setStatus('저장 실패')
+      return false
+    }
+  }
+
+  const startNewProject = async () => {
+    if (!window.confirm('현재 작업을 저장하고 새 프로젝트를 시작할까요?')) return
+    if (!(await saveCurrentProject())) return
+    setUndoStack([])
+    setRedoStack([])
+    setDocument(createDocument())
+    setSelected(null)
+  }
+
+  const showPreview = async () => {
+    await window.document.fonts?.ready
+    const artboard = ARTBOARD[document.orientation]
+    const scale = fitScale * viewZoom
+    const ratio = Math.min(4, 900 / (Math.max(artboard.width, artboard.height) * scale))
+    const url = await captureCanvas('image/png', ratio)
+    if (url) setPreviewUrl(url)
+  }
+
   const exportImage = async (format:'png'|'jpeg'|'pdf') => {
     await window.document.fonts?.ready
     const outputW = Math.round(document.output.widthMm / 25.4 * document.output.dpi)
@@ -288,10 +319,12 @@ export function Editor({ onExit }: { onExit: () => void }) {
     <input ref={fileInputRef} hidden type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>{ if(e.target.files) addFiles(Array.from(e.target.files),uploadTarget.current??undefined); e.target.value='' }}/>
     <input ref={projectInputRef} hidden type="file" accept=".json,.photostudio.json" onChange={async e=>{const file=e.target.files?.[0];if(file){try{setDocument(await importProjectFile(file));setStatus('프로젝트를 가져왔어요')}catch{setStatus('올바른 프로젝트 파일이 아니에요')}}e.target.value=''}}/>
     <input ref={stickerInputRef} hidden type="file" accept="image/png,image/webp" onChange={async e=>{const file=e.target.files?.[0];if(file)addSticker(await readImageFile(file),'image');e.target.value=''}}/>
-    <header className="editor-header">
+    <header className="editor-header studio-editor-header">
       <button className="flex shrink-0 items-center gap-2.5 text-left" onClick={onExit} aria-label="너를, 바라봄 시작 화면으로"><img src={`${import.meta.env.BASE_URL}barabom-mark.svg`} alt="" className="size-9"/><span className="hidden sm:block"><strong className="block font-['Noto_Serif_KR'] text-sm font-semibold leading-tight tracking-[-.035em]">너를, 바라봄</strong><small className="mt-0.5 block text-[8px] font-semibold tracking-[.18em] text-[#8a6f47]">BARABOM STUDIO</small></span></button>
       <div className="flex min-w-0 flex-1 items-center justify-center gap-2"><input aria-label="프로젝트 이름" className="project-name" value={document.name} onChange={e=>commit(d=>({...d,name:e.target.value}),false)}/><span className="hidden text-xs text-slate-400 lg:block">{status}</span></div>
-      <div className="header-actions flex shrink-0 items-center gap-1"><IconButton label="저장" onClick={()=>saveProject(document).then(()=>setStatus('저장 완료'))}><Save size={17}/></IconButton><IconButton label="실행 취소" disabled={!undoStack.length} onClick={undo}><Undo2 size={17}/></IconButton><IconButton label="다시 실행" disabled={!redoStack.length} onClick={redo}><Redo2 size={17}/></IconButton><button className="primary-btn" onClick={()=>setDownloadOpen(true)}><Download size={16}/><span className="hidden sm:inline">다운로드</span></button></div>
+      <StudioHeaderActions onBack={onExit} onNew={() => void startNewProject()} onSave={() => void saveCurrentProject()}
+        onUndo={undo} onRedo={redo} canUndo={undoStack.length > 0} canRedo={redoStack.length > 0}
+        onPreview={() => void showPreview()} onDownload={() => setDownloadOpen(true)} />
     </header>
     <div className="flex min-h-0 flex-1">
       <nav className="tool-nav">{tabs.map(item=><button key={item.id} className={tab===item.id?'active':''} onClick={()=>{setTab(item.id);setMobilePanel(true)}}><item.icon size={19}/><span>{item.label}</span></button>)}</nav>
@@ -303,6 +336,16 @@ export function Editor({ onExit }: { onExit: () => void }) {
       <aside className="right-panel">{renderInspector()}</aside>
     </div>
     <footer className="editor-footer"><span>{document.cutCount}컷 · {document.output.widthMm}×{document.output.heightMm}mm · {document.output.dpi}DPI</span><span>{outputPixels.width}×{outputPixels.height}px</span></footer>
+    {previewUrl && <div className="modal-backdrop" onMouseDown={() => setPreviewUrl('')}>
+      <div className="download-modal max-w-2xl" role="dialog" aria-modal="true" aria-labelledby="fourcut-preview-title"
+        onMouseDown={(event) => event.stopPropagation()} onKeyDown={(event) => { if (event.key === 'Escape') setPreviewUrl('') }}>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 id="fourcut-preview-title" className="font-bold">인생네컷 미리보기</h2>
+          <button type="button" className="icon-btn" aria-label="미리보기 닫기" onClick={() => setPreviewUrl('')} autoFocus><X size={18} /></button>
+        </div>
+        <img className="mx-auto max-h-[70vh] max-w-full object-contain" src={previewUrl} alt="인생네컷 미리보기" />
+      </div>
+    </div>}
     {downloadOpen && <div className="modal-backdrop" onMouseDown={()=>setDownloadOpen(false)}><div className="download-modal" onMouseDown={e=>e.stopPropagation()}><div className="flex items-start justify-between"><SectionTitle title="다운로드" description="파일 형식과 출력 품질을 선택한 뒤 다운로드하세요."/><button onClick={()=>setDownloadOpen(false)} className="icon-btn"><Minus/></button></div><p className="field-label">출력 규격</p><select className="select-input" value={document.output.preset} onChange={e=>{const preset=e.target.value as EditorDocument['output']['preset'];const size=preset==='strip50x150'?[50,150]:preset==='2x6'?[50.8,152.4]:preset==='4x6'?[101.6,152.4]:[document.output.widthMm,document.output.heightMm];commit(d=>({...d,output:{...d.output,preset,widthMm:size[0],heightMm:size[1]}}))}}><option value="strip50x150">인생네컷 50×150mm</option><option value="2x6">2×6인치 포토 스트립</option><option value="4x6">4×6인치 사진</option><option value="custom">사용자 지정</option></select>{document.output.preset==='custom'&&<div className="mt-3 grid grid-cols-2 gap-3"><label className="field-label">가로(mm)<input className="text-input" type="number" value={document.output.widthMm} onChange={e=>commit(d=>({...d,output:{...d.output,widthMm:Number(e.target.value)}}))}/></label><label className="field-label">세로(mm)<input className="text-input" type="number" value={document.output.heightMm} onChange={e=>commit(d=>({...d,output:{...d.output,heightMm:Number(e.target.value)}}))}/></label></div>}<p className="field-label mt-5">출력 품질</p><select className="select-input" value={document.output.dpi} onChange={e=>commit(d=>({...d,output:{...d.output,dpi:Number(e.target.value)}}))}><option value={150}>일반 화질 · 150DPI</option><option value={240}>고화질 · 240DPI</option><option value={300}>인화용 · 300DPI</option></select><div className="mt-4 rounded-xl bg-slate-100 p-4 text-sm"><div className="flex justify-between"><span>예상 이미지 크기</span><strong>{outputPixels.width} × {outputPixels.height}px</strong></div></div><p className="field-label mt-5">파일 형식</p><div className="mt-2 grid grid-cols-3 gap-2"><button className={`choice-btn ${downloadFormat==='png'?'active':''}`} onClick={()=>setDownloadFormat('png')}>PNG</button><button className={`choice-btn ${downloadFormat==='jpeg'?'active':''}`} onClick={()=>setDownloadFormat('jpeg')}>JPG</button><button className={`choice-btn ${downloadFormat==='pdf'?'active':''}`} onClick={()=>setDownloadFormat('pdf')}>PDF</button></div><button className="primary-btn mt-5 w-full justify-center" onClick={()=>exportImage(downloadFormat)}><Download size={16}/> {downloadFormat==='jpeg'?'JPG':downloadFormat.toUpperCase()} 다운로드</button></div></div>}
   </div>
 }

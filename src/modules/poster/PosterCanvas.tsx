@@ -1,9 +1,11 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
+import { X } from 'lucide-react'
 import Konva from 'konva'
 import { Arrow, Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text, Transformer } from 'react-konva'
 import useImage from 'use-image'
 import type { PosterCanvasHandle, PosterDocument, PosterElement, PosterImageElement } from './types'
 import { findPhotoSlotAt } from './photoSlots'
+import './poster-canvas.css'
 
 const emptyPhotoSlotName = 'empty-photo-slot'
 
@@ -16,6 +18,7 @@ interface Props {
   showSafeArea: boolean
   onSelect: (id: string | null) => void
   onChange: (id: string, patch: Partial<PosterElement>) => void
+  onDelete: (id: string) => void
   onRequestImage: (id: string) => void
 }
 
@@ -125,6 +128,7 @@ function ElementNode({ element, selected, exporting, onSelect, onChange, onReque
   return <>
     <Group
       ref={nodeRef}
+      id={`poster-element-${element.id}`}
       x={element.x}
       y={element.y}
       rotation={element.rotation}
@@ -167,9 +171,10 @@ function ShapeContent({element}:{element:Extract<PosterElement,{kind:'shape'}>})
   return <Rect x={-w/2} y={-h/2} width={w} height={h} fill={element.fill} stroke={element.stroke} strokeWidth={element.strokeWidth} cornerRadius={element.radius}/>
 }
 
-export const PosterCanvas=forwardRef<PosterCanvasHandle,Props>(function PosterCanvas({document,scale,selectedId,exporting,dropTargetId,showSafeArea,onSelect,onChange,onRequestImage},ref){
+export const PosterCanvas=forwardRef<PosterCanvasHandle,Props>(function PosterCanvas({document,scale,selectedId,exporting,dropTargetId,showSafeArea,onSelect,onChange,onDelete,onRequestImage},ref){
   const stageRef=useRef<Konva.Stage>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
+  const deleteButtonRef = useRef<HTMLButtonElement>(null)
   const [hoveredSlotId, setHoveredSlotId] = useState<string | null>(null)
   const {width, height} = document.size
   useImperativeHandle(ref, () => ({
@@ -199,6 +204,27 @@ export const PosterCanvas=forwardRef<PosterCanvasHandle,Props>(function PosterCa
     },
   }), [document.elements, width, height])
   const selected=document.elements.find((element)=>element.id===selectedId)
+  const deleteTarget = !exporting && selected?.visible && !selected.locked &&
+    (selected.kind === 'text' || selected.kind === 'sticker' || selected.kind === 'shape') ? selected : null
+  useLayoutEffect(() => {
+    const button = deleteButtonRef.current
+    if (!button || !deleteTarget) return
+    const node = stageRef.current?.findOne((item: Konva.Node) => item.id() === `poster-element-${deleteTarget.id}`)
+    if (!node) return
+
+    const positionButton = () => {
+      const bounds = node.getClientRect({skipTransform:true, skipShadow:true})
+      const corner = node.getAbsoluteTransform().point({x:bounds.x + bounds.width, y:bounds.y})
+      const edge = 12
+      button.style.left = `${Math.max(edge, Math.min(width * scale - edge, corner.x * scale + 12))}px`
+      button.style.top = `${Math.max(edge, Math.min(height * scale - edge, corner.y * scale - 10))}px`
+      button.style.visibility = 'visible'
+    }
+    positionButton()
+    node.on('dragmove.deleteButton dragend.deleteButton transform.deleteButton transformend.deleteButton', positionButton)
+    return () => { node.off('.deleteButton') }
+  }, [deleteTarget, width, height, scale])
+
   const dropTarget = document.elements.find((element) => element.id === dropTargetId)
   const showSlotCursor = !exporting && hoveredSlotId !== null && document.elements.some(
     (element) => element.id === hoveredSlotId && element.kind === 'image' && element.visible && !element.src,
@@ -227,5 +253,10 @@ export const PosterCanvas=forwardRef<PosterCanvasHandle,Props>(function PosterCa
         {showSafeArea&&!exporting&&<Rect x={28} y={28} width={document.size.width-56} height={document.size.height-56} stroke="#ef4444" strokeWidth={1.5} dash={[10,7]} opacity={.65} listening={false}/>} 
       </Layer>
     </Stage>
+    {deleteTarget && <button
+      type="button" ref={deleteButtonRef} className="poster-element-delete"
+      title={`${deleteTarget.name} 삭제`} aria-label={`${deleteTarget.name} 삭제`}
+      onClick={() => onDelete(deleteTarget.id)}
+    ><X size={13} aria-hidden="true" /></button>}
   </div>
 })

@@ -2,11 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { jsPDF } from 'jspdf'
 import QRCode from 'qrcode'
 import {
-  ArrowDown, ArrowLeft, ArrowUp, BringToFront, Circle, Copy, Download, Eye, EyeOff,
+  ArrowDown, ArrowUp, BringToFront, Circle, Copy, Download, Eye, EyeOff,
   FileDown, FolderOpen, ImagePlus, Images, Layers3, LayoutTemplate, Lock, Maximize2, Minus, Palette,
-  Plus, QrCode, Redo2, RotateCcw, Save, SendToBack, Shapes, Sparkles, Square, Sticker, Trash2, Type,
-  Undo2, Unlock, Upload, Wallpaper, ZoomIn, ZoomOut,
+  QrCode, RotateCcw, Save, SendToBack, Shapes, Sparkles, Square, Sticker, Trash2, Type,
+  Unlock, Upload, Wallpaper, ZoomIn, ZoomOut,
 } from 'lucide-react'
+import { StudioHeaderActions } from '../../components/StudioHeaderActions'
 import { PosterCanvas } from './PosterCanvas'
 import { PosterTemplateCard } from './PosterTemplateCard'
 import { createBlankPoster, documentFromTemplate, posterCategories, posterSizes, posterTemplates } from './templates'
@@ -229,10 +230,12 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
     <input ref={stickerInputRef} hidden type="file" accept="image/png,image/webp" onChange={async(event)=>{const file=event.target.files?.[0];if(file)addSticker(await readPosterImage(file),'image');event.target.value=''}}/>
     <input ref={projectInputRef} hidden type="file" accept=".json,.barabom-poster.json" onChange={async(event)=>{const file=event.target.files?.[0];if(file){try{setDocument(await importPosterProject(file));setStatus('프로젝트를 가져왔어요')}catch{setStatus('올바른 포스터 파일이 아니에요')}}event.target.value=''}}/>
     <input ref={templateInputRef} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={(event)=>{const file=event.target.files?.[0];if(file)void uploadTemplate(file);event.target.value=''}}/>
-    <header className="poster-header">
+    <header className="poster-header studio-editor-header">
       <button className="poster-header-brand" onClick={onExit}><img src={`${import.meta.env.BASE_URL}barabom-mark.svg`} alt=""/><div><strong>너를, 바라봄</strong><span>POSTER STUDIO</span></div></button>
       <div className="poster-header-name"><input aria-label="프로젝트 이름" value={document.name} onChange={(event)=>commit((d)=>({...d,name:event.target.value}),false)}/><span style={{fontSize:11,color:'#94a3b8'}}>{status}</span></div>
-      <div className="poster-header-actions"><button className="poster-icon-button" title="메인" onClick={onExit}><ArrowLeft size={17}/></button><button className="poster-icon-button" title="새 프로젝트" onClick={newProject}><Plus size={17}/></button><button className="poster-icon-button" title="저장" onClick={()=>savePosterProject(document).then(()=>setStatus('저장 완료'))}><Save size={17}/></button><button className="poster-icon-button" title="실행 취소" disabled={!history.length} onClick={undo}><Undo2 size={17}/></button><button className="poster-icon-button" title="다시 실행" disabled={!future.length} onClick={redo}><Redo2 size={17}/></button><button className="poster-icon-button" title="미리보기" onClick={()=>void showPreview()}><Eye size={17}/></button><button className="poster-icon-button primary" onClick={()=>setDownloadOpen(true)}><Download size={16}/><span>다운로드</span></button></div>
+      <StudioHeaderActions onBack={onExit} onNew={newProject} onSave={() => void savePosterProject(document).then(() => setStatus('저장 완료'))}
+        onUndo={undo} onRedo={redo} canUndo={history.length > 0} canRedo={future.length > 0}
+        onPreview={() => void showPreview()} onDownload={() => setDownloadOpen(true)} />
     </header>
     <div className="poster-editor-body">
       <nav className="poster-tools">{tabs.map((item)=><button key={item.id} className={tab===item.id?'active':''} onClick={()=>{setTab(item.id);setMobilePanel(true)}}><item.icon size={19}/><span>{item.label}</span></button>)}</nav>
@@ -255,7 +258,7 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
           if (file) void addImageFile(file, targetId)
         }}
       >
-        <PosterCanvas ref={canvasRef} document={document} scale={actualScale} selectedId={selectedId} exporting={exporting} dropTargetId={dropTargetId} showSafeArea={showSafeArea} onSelect={setSelectedId} onChange={updateElement} onRequestImage={requestImage}/>
+        <PosterCanvas ref={canvasRef} document={document} scale={actualScale} selectedId={selectedId} exporting={exporting} dropTargetId={dropTargetId} showSafeArea={showSafeArea} onSelect={setSelectedId} onChange={updateElement} onDelete={removeElement} onRequestImage={requestImage}/>
         <div className="poster-zoom"><button className="poster-icon-button" onClick={()=>setViewZoom((v)=>Math.max(.4,v-.1))}><ZoomOut size={16}/></button><span>{Math.round(viewZoom*100)}%</span><button className="poster-icon-button" onClick={()=>setViewZoom((v)=>Math.min(2.5,v+.1))}><ZoomIn size={16}/></button><button className="poster-icon-button" onClick={()=>setViewZoom(1)}><Maximize2 size={15}/></button></div>
       </main>
       <aside className="poster-inspector">{renderInspector()}</aside>

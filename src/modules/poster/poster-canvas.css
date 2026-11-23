@@ -1,0 +1,21 @@
+.poster-stage-wrap { position: relative; }
+
+.poster-element-delete {
+  visibility: hidden;
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #dc2626;
+  color: #fff;
+  box-shadow: 0 2px 6px #0f172a45;
+  cursor: pointer;
+}
+
+.poster-element-delete:hover { background: #b91c1c; }
+.poster-element-delete:focus-visible { outline: 2px solid #7c3aed; outline-offset: 2px; }

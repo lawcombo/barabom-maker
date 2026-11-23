@@ -4,11 +4,11 @@ import { documentFromTemplate, posterCategories, posterTemplates } from './templ
 describe('poster templates', () => {
   it('keeps the 18 categories and includes the additional frame designs', () => {
     expect(posterCategories).toHaveLength(19)
-    expect(posterTemplates).toHaveLength(58)
+    expect(posterTemplates).toHaveLength(64)
     for (const category of posterCategories.slice(1)) {
       expect(posterTemplates.filter((template) => template.category === category).length).toBeGreaterThanOrEqual(3)
     }
-    expect(posterTemplates.filter((template) => template.kind === 'frame')).toHaveLength(22)
+    expect(posterTemplates.filter((template) => template.kind === 'frame')).toHaveLength(28)
   })
 
   it('uses full-size background artwork and only adds empty slots to frame designs', () => {

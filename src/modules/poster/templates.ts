@@ -224,7 +224,77 @@ function makeExtraFrame(design: typeof extraFrames[number]): PosterTemplate {
   }
 }
 
+function makeGalleryCollection(): PosterTemplate[] {
+  const size = posterSizes['a4-portrait']
+  const {width:w, height:h} = size
+  const sampleDate = '2027. 04. 17.'
+  const title = (key:string, value:string, x:number, y:number, width:number, fontSize:number, color:string, family='Gowun Batang') =>
+    text(key,'제목',value,w*x,h*y,w*width,90,fontSize,color,family,'center')
+  const note = (key:string, name:string, value:string, x:number, y:number, width:number, fontSize:number, color:string) =>
+    text(key,name,value,w*x,h*y,w*width,66,fontSize,color,'Noto Sans KR','center','normal')
+  const photo = (key:string, name:string, x:number, y:number, width:number, height:number, rotation=0) =>
+    slot(key,name,w*x,h*y,w*width,h*height,rotation)
+  const design = (id:string, name:string, category:string, color:string, elements:PosterElement[]): PosterTemplate => ({
+    id, name, category, kind:'frame', tags:[category,'액자','세로'], recommended:true,
+    size:{...size}, background:{type:'image',color,secondary:color,imageSrc:posterAsset(`poster-${id}.jpg`),opacity:1}, elements,
+  })
+  const familyPhotos = [
+    photo('family-photo-1','가족 사진 1',.284,.334,.30,.176,-10),
+    photo('family-photo-2','가족 사진 2',.698,.25,.29,.175,9),
+    photo('family-photo-3','가족 사진 3',.681,.484,.30,.174,7),
+    photo('family-photo-4','가족 사진 4',.278,.579,.30,.177,-8),
+    photo('family-photo-5','가족 사진 5',.651,.725,.30,.176,9),
+  ]
+
+  return [
+    design('heirloom-invitation','클래식 웨딩 초대장','웨딩·기념일','#f4eee5',[
+      photo('heirloom-photo','웨딩 사진',.50,.327,.492,.385),
+      note('heirloom-kicker','상단 문구','WEDDING INVITATION',.5,.592,.73,19,'#75624f'),
+      title('heirloom-title','신랑 이름  ·  신부 이름',.5,.658,.82,42,'#372a22'),
+      shape('heirloom-line','구분선','rect',w*.5,h*.708,w*.63,1,'#a38a72'),
+      note('heirloom-note','초대 문구','저희의 새로운 시작을 함께 축복해 주세요.',.5,.773,.80,23,'#544236'),
+      note('heirloom-date','날짜',sampleDate,.5,.90,.65,26,'#544236'),
+    ]),
+    design('sunlit-wall','오후 햇살 벽걸이 액자','프리미엄','#eae2d5',[
+      photo('sunlit-photo','벽걸이 액자 사진',.432,.441,.545,.506),
+      title('sunlit-title','빛이 드는 자리',.43,.912,.64,47,'#2a2723'),
+    ]),
+    design('leaning-duo','창가 전시 · 2컷','공연·전시','#e1e4df',[
+      title('gallery-pair-title','오늘의 전시',.5,.107,.76,52,'#263933'),
+      note('gallery-pair-note','설명','함께 놓인 두 장면',.5,.174,.74,21,'#40524b'),
+      photo('duo-left','왼쪽 액자 사진',.279,.571,.331,.322),
+      photo('duo-right','오른쪽 액자 사진',.736,.655,.330,.315),
+    ]),
+    design('family-blooms','꽃피는 우리 가족 · 5컷','사진 콜라주','#e8efdf',[
+      title('family-title','우리 가족의 하루',.382,.107,.67,60,'#244636','Nanum Pen Script'),
+      ...familyPhotos.flatMap((item) => [
+        {
+          ...shape(`${item.id}-paper`,'폴라로이드 종이','rect',item.x,item.y+8,item.width+24,item.height+37,'#fffdf7',3),
+          rotation:item.rotation,
+        },
+        item,
+      ]),
+      note('family-note','기록','함께한 오늘을 한 장에',.634,.915,.56,19,'#244636'),
+    ]),
+    design('farewell-garden','꽃길 송별 파티 카드','행사·이벤트','#fae7dc',[
+      note('farewell-kicker','상단 문구','GOOD LUCK ON YOUR NEXT ADVENTURE',.5,.105,.80,15,'#675567'),
+      shape('farewell-photo-border','사진 장식 테두리','rect',w*.5,h*.305,w*.687,h*.302,'#b94e63',28),
+      { ...photo('farewell-photo','주인공 사진',.50,.305,.67,.29), mask:'round' },
+      title('farewell-title','새로운 시작을 응원해!',.5,.555,.79,61,'#b94e63','Nanum Pen Script'),
+      note('farewell-note','초대 문구','함께한 시간에 감사하며, 우리 곧 다시 만나요.',.5,.657,.78,20,'#4d3651'),
+      shape('farewell-panel','모임 안내 배경','rect',w*.5,h*.799,w*.71,h*.115,'#267453',12),
+      note('farewell-info','장소와 시간','바라봄 카페  ·  오후 7시',.5,.798,.66,26,'#ffffff'),
+    ]),
+    design('standing-wedding','우리의 시작 · 스탠딩 액자','웨딩·기념일','#e6e2d8',[
+      title('standing-title','우리의 새로운 시작',.53,.115,.82,57,'#322c24','Nanum Pen Script'),
+      photo('standing-photo','스탠딩 액자 사진',.616,.558,.435,.377),
+      note('standing-note','날짜',sampleDate,.61,.925,.58,24,'#2c261e'),
+    ]),
+  ]
+}
+
 export const posterTemplates: PosterTemplate[] = [
+  ...makeGalleryCollection(),
   ...categories.flatMap((_, categoryIndex) => [0,1,2].map((variant) => makeTemplate(categoryIndex, variant))),
   ...extraFrames.map(makeExtraFrame),
 ]

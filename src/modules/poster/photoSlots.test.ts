@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { findPhotoSlotAt } from './photoSlots'
-import { posterTemplates } from './templates'
+import { posterTemplates, templateById } from './templates'
 import type { PosterImageElement } from './types'
 
 const scrapbook = posterTemplates.find((template) => template.name === '사진 일기 · 4컷')!
@@ -21,5 +21,16 @@ describe('poster photo slots', () => {
     expect(findPhotoSlotAt([rotated], 140, 100)).toBeNull()
     expect(findPhotoSlotAt([rotated, { ...rotated, id:'hidden', visible:false }], 100, 100)).toBe(rotated.id)
     expect(findPhotoSlotAt([{ ...rotated, locked:true }, { ...rotated, isSlot:false }], 100, 100)).toBeNull()
+  })
+
+  it('targets each photo independently in the new gallery pair and family collage', () => {
+    for (const [id, count] of [['leaning-duo', 2], ['family-blooms', 5]] as const) {
+      const template = templateById(id)!
+      const slots = template.elements.filter((element) => element.kind === 'image' && element.isSlot)
+      expect(slots).toHaveLength(count)
+      for (const slot of slots) {
+        expect(findPhotoSlotAt(template.elements, slot.x, slot.y)).toBe(slot.id)
+      }
+    }
   })
 })
