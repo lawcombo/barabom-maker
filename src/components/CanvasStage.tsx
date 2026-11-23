@@ -4,6 +4,7 @@ import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text } fr
 import useImage from 'use-image'
 import { ARTBOARD, getLayoutRects } from '../data/layouts'
 import { templateById } from '../data/templates'
+import { PHOTO_ZOOM, zoomFromWheel } from '../lib/photoZoom'
 import type { EditorDocument, LayoutRect, SelectedElement, SlotPhoto, StickerElement, TextElement } from '../types'
 
 export interface CanvasHandle {
@@ -236,7 +237,7 @@ export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage(
     const photo = document.photos[index]
     const rect = rects[index]
     if (!photo || !rect) return
-    const zoom = clamp(nextZoom, photo.fit === 'cover' ? 1 : .15, 8)
+    const zoom = clamp(nextZoom, photo.fit === 'cover' ? PHOTO_ZOOM.coverMin : PHOTO_ZOOM.containMin, PHOTO_ZOOM.max)
     let offsetX = photo.offsetX
     let offsetY = photo.offsetY
     if (pointer) {
@@ -270,11 +271,11 @@ export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage(
         onMouseDown={(event) => { if (event.target === event.target.getStage()) onSelect(null) }}
         onWheel={(event) => {
           const index = hoverIndex.current
-          if (index === null || !document.photos[index]) return
+          if (event.evt.deltaY === 0 || index === null || !document.photos[index]) return
           event.evt.preventDefault()
           const point = stageRef.current?.getPointerPosition()
           const current = document.photos[index]!
-          zoomPhoto(index, current.zoom * (event.evt.deltaY > 0 ? .94 : 1.06), point ? { x: point.x / viewScale, y: point.y / viewScale } : undefined)
+          zoomPhoto(index, zoomFromWheel(current.zoom, event.evt.deltaY), point ? { x: point.x / viewScale, y: point.y / viewScale } : undefined)
         }}
         onTouchStart={(event) => {
           if (event.evt.touches.length !== 2 || hoverIndex.current === null) return

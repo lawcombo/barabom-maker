@@ -3,6 +3,7 @@ import { X } from 'lucide-react'
 import Konva from 'konva'
 import { Arrow, Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text, Transformer } from 'react-konva'
 import useImage from 'use-image'
+import { PHOTO_ZOOM, zoomFromWheel } from '../../lib/photoZoom'
 import type { PosterCanvasHandle, PosterDocument, PosterElement, PosterImageElement } from './types'
 import { findPhotoSlotAt } from './photoSlots'
 import './poster-canvas.css'
@@ -82,7 +83,25 @@ function ImageContent({ element, selected, exporting, onChange }: {
   const drawHeight=image.height*cover*element.zoom
   const baseX=-drawWidth/2+element.offsetX
   const baseY=-drawHeight/2+element.offsetY
-  return <Group clipFunc={clip}>
+  return <Group clipFunc={clip} onWheel={(event) => {
+    const wheel = event.evt
+    if (exporting || element.locked || wheel.deltaY === 0) return
+    const point = event.currentTarget.getRelativePointerPosition()
+    if (!point) return
+    wheel.preventDefault()
+
+    const minZoom = Math.min(element.zoom, element.isSlot ? PHOTO_ZOOM.coverMin : PHOTO_ZOOM.containMin)
+    const zoom = Math.min(PHOTO_ZOOM.max, Math.max(minZoom, zoomFromWheel(element.zoom, wheel.deltaY)))
+    if (zoom === element.zoom) return
+
+    const ratio = zoom / element.zoom
+    onChange({
+      zoom,
+      offsetX: point.x + (element.offsetX - point.x) * ratio,
+      offsetY: point.y + (element.offsetY - point.y) * ratio,
+    })
+  }}>
+    <Rect x={-element.width/2} y={-element.height/2} width={element.width} height={element.height} fill="transparent" />
     <KonvaImage
       ref={imageRef}
       image={image}
@@ -239,12 +258,6 @@ export const PosterCanvas=forwardRef<PosterCanvasHandle,Props>(function PosterCa
       onMouseLeave={() => setHoveredSlotId(null)}
       onMouseDown={(event)=>{if(event.target===event.target.getStage())onSelect(null)}}
       onTouchStart={(event)=>{if(event.target===event.target.getStage())onSelect(null)}}
-      onWheel={(event)=>{
-        if(!selected||selected.kind!=='image'||!selected.src)return
-        event.evt.preventDefault()
-        const zoom=Math.min(6,Math.max(.2,selected.zoom*(event.evt.deltaY>0?.94:1.06)))
-        onChange(selected.id,{zoom})
-      }}
     >
       <Layer>
         <Background document={document}/>
