@@ -19,6 +19,7 @@ import '@fontsource/ibm-plex-sans-kr/400.css'
 import '@fontsource/sunflower/500.css'
 import '@fontsource/gamja-flower/400.css'
 import '@fontsource/poor-story/400.css'
+import './studio-typefaces.css'
 import './index.css'
 import App from './App'
 

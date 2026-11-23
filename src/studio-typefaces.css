@@ -1,0 +1,63 @@
+@font-face {
+  font-family: 'Pretendard';
+  src: url('./assets/fonts/pretendard.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Hahmlet';
+  src: url('./assets/fonts/hahmlet.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Diphylleia';
+  src: url('./assets/fonts/diphylleia.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Nanum Myeongjo';
+  src: url('./assets/fonts/nanummyeongjo.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Bagel Fat One';
+  src: url('./assets/fonts/bagelfatone.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Dongle';
+  src: url('./assets/fonts/dongle.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Single Day';
+  src: url('./assets/fonts/singleday.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Yeon Sung';
+  src: url('./assets/fonts/yeonsung.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
