@@ -1,9 +1,11 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import Konva from 'konva'
 import { Arrow, Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text, Transformer } from 'react-konva'
 import useImage from 'use-image'
 import type { PosterCanvasHandle, PosterDocument, PosterElement, PosterImageElement } from './types'
 import { findPhotoSlotAt } from './photoSlots'
+
+const emptyPhotoSlotName = 'empty-photo-slot'
 
 interface Props {
   document: PosterDocument
@@ -67,7 +69,7 @@ function ImageContent({ element, selected, exporting, onChange }: {
     if (exporting) return null
     return <>
       <Group clipFunc={clip}>
-        <Rect x={-element.width/2} y={-element.height/2} width={element.width} height={element.height} fill="#e2e8f0" opacity={.62}/>
+        <Rect id={element.id} name={emptyPhotoSlotName} x={-element.width/2} y={-element.height/2} width={element.width} height={element.height} fill="#e2e8f0" opacity={.62}/>
       </Group>
       <Text x={-element.width/2} y={-24} width={element.width} height={48} text="사진 놓기 또는 클릭" align="center" verticalAlign="middle" fontSize={Math.min(18, element.width / 8)} fontStyle="bold" fill="#334155" listening={false}/>
     </>
@@ -168,6 +170,7 @@ function ShapeContent({element}:{element:Extract<PosterElement,{kind:'shape'}>})
 export const PosterCanvas=forwardRef<PosterCanvasHandle,Props>(function PosterCanvas({document,scale,selectedId,exporting,dropTargetId,showSafeArea,onSelect,onChange,onRequestImage},ref){
   const stageRef=useRef<Konva.Stage>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
+  const [hoveredSlotId, setHoveredSlotId] = useState<string | null>(null)
   const {width, height} = document.size
   useImperativeHandle(ref, () => ({
     toDataURL: (mimeType, pixelRatio, quality=.95, outputSize) => {
@@ -197,12 +200,17 @@ export const PosterCanvas=forwardRef<PosterCanvasHandle,Props>(function PosterCa
   }), [document.elements, width, height])
   const selected=document.elements.find((element)=>element.id===selectedId)
   const dropTarget = document.elements.find((element) => element.id === dropTargetId)
+  const showSlotCursor = !exporting && hoveredSlotId !== null && document.elements.some(
+    (element) => element.id === hoveredSlotId && element.kind === 'image' && element.visible && !element.src,
+  )
   return <div ref={wrapperRef} className="poster-stage-wrap" style={{width:width*scale,height:height*scale}}>
     <Stage
       ref={stageRef}
       width={document.size.width}
       height={document.size.height}
-      style={{transform:`scale(${scale})`,transformOrigin:'top left'}}
+      style={{transform:`scale(${scale})`,transformOrigin:'top left',cursor:showSlotCursor?'pointer':undefined}}
+      onMouseMove={({target}) => setHoveredSlotId(target.hasName(emptyPhotoSlotName) ? target.id() : null)}
+      onMouseLeave={() => setHoveredSlotId(null)}
       onMouseDown={(event)=>{if(event.target===event.target.getStage())onSelect(null)}}
       onTouchStart={(event)=>{if(event.target===event.target.getStage())onSelect(null)}}
       onWheel={(event)=>{
