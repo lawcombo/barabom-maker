@@ -99,7 +99,7 @@ export interface DesignTemplate {
   gap: number
   padding: number
   radius: number
-  pattern: 'none' | 'dots' | 'grid' | 'stripes' | 'confetti' | 'stars' | 'waves' | 'film'
+  pattern: 'none' | 'dots' | 'grid' | 'stripes' | 'confetti' | 'stars' | 'waves' | 'film' | 'hearts' | 'flowers' | 'checker' | 'terrazzo' | 'sunburst' | 'lace' | 'neon' | 'newspaper' | 'comic' | 'ornament'
   topCaption: string
   bottomCaption: string
   decoration: string

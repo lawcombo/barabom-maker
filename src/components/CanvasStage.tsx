@@ -126,7 +126,9 @@ function PhotoNode({ photo, rect, radius, selected, onSelect, onChange }: {
 function Pattern({ document }: { document: EditorDocument }) {
   const { width, height } = ARTBOARD[document.orientation]
   const pattern = document.frame.pattern
-  const accent = templateById(document.templateId).colors[1]
+  const template = templateById(document.templateId)
+  const accent = template.colors[1]
+  const secondary = template.colors[2]
   if (pattern === 'none') return null
   if (pattern === 'dots' || pattern === 'stars' || pattern === 'confetti') {
     return <Group opacity={0.18} listening={false}>{Array.from({ length: 45 }, (_, i) => {
@@ -143,6 +145,33 @@ function Pattern({ document }: { document: EditorDocument }) {
   ]}</Group>
   if (pattern === 'stripes') return <Group opacity={0.12} listening={false}>{Array.from({ length: Math.ceil((width + height) / 42) }, (_, i) => <Line key={i} points={[i * 42 - height, height, i * 42, 0]} stroke={accent} strokeWidth={16} />)}</Group>
   if (pattern === 'film') return <Group opacity={0.75} listening={false}>{Array.from({ length: Math.ceil(height / 34) }, (_, i) => <><Rect key={`l${i}`} x={8} y={i * 34 + 7} width={12} height={18} fill={accent}/><Rect key={`r${i}`} x={width-20} y={i * 34 + 7} width={12} height={18} fill={accent}/></>)}</Group>
+  if (pattern === 'hearts' || pattern === 'flowers') return <Group opacity={0.16} listening={false}>{Array.from({ length: 32 }, (_, i) => <Text key={i} x={(i * 97) % width} y={(i * 151) % height} text={pattern === 'hearts' ? (i % 3 ? '♥' : '♡') : (i % 2 ? '✿' : '❀')} fontSize={15 + i % 12} rotation={(i * 17) % 30 - 15} fill={i % 4 ? accent : secondary}/>)}</Group>
+  if (pattern === 'checker') {
+    const size = 34
+    return <Group opacity={0.13} listening={false}>{Array.from({ length: Math.ceil(width / size) * Math.ceil(height / size) }, (_, i) => {
+      const columns = Math.ceil(width / size)
+      const x = (i % columns) * size
+      const y = Math.floor(i / columns) * size
+      return <Rect key={i} x={x} y={y} width={size} height={size} fill={(Math.floor(x / size) + Math.floor(y / size)) % 2 ? accent : secondary}/>
+    })}</Group>
+  }
+  if (pattern === 'terrazzo') return <Group opacity={0.18} listening={false}>{Array.from({ length: 42 }, (_, i) => {
+    const x = (i * 89) % width
+    const y = (i * 143) % height
+    return i % 3 === 0
+      ? <Circle key={i} x={x} y={y} radius={3 + i % 7} fill={i % 2 ? accent : secondary}/>
+      : <Line key={i} points={[x, y, x + 7 + i % 9, y + (i % 2 ? 12 : -10)]} stroke={i % 2 ? accent : secondary} strokeWidth={3 + i % 4} lineCap="round"/>
+  })}</Group>
+  if (pattern === 'sunburst') return <Group opacity={0.10} listening={false}>{Array.from({ length: 36 }, (_, i) => {
+    const angle = i / 36 * Math.PI * 2
+    const radius = Math.max(width, height)
+    return <Line key={i} points={[width / 2, height / 2, width / 2 + Math.cos(angle) * radius, height / 2 + Math.sin(angle) * radius]} stroke={i % 2 ? accent : secondary} strokeWidth={12}/>
+  })}</Group>
+  if (pattern === 'lace') return <Group opacity={0.30} listening={false}>{Array.from({ length: Math.ceil(width / 24) }, (_, i) => <Group key={i}><Circle x={i * 24 + 12} y={8} radius={10} stroke={accent} strokeWidth={2}/><Circle x={i * 24 + 12} y={height - 8} radius={10} stroke={accent} strokeWidth={2}/></Group>)}</Group>
+  if (pattern === 'neon') return <Group opacity={0.20} listening={false}><Circle x={width * .18} y={height * .18} radius={42} stroke={accent} strokeWidth={8}/><Circle x={width * .82} y={height * .74} radius={64} stroke={secondary} strokeWidth={10}/>{Array.from({ length: 12 }, (_, i) => <Line key={i} points={[0, i * 52, width, i * 52 - 110]} stroke={i % 2 ? accent : secondary} strokeWidth={2}/>)}</Group>
+  if (pattern === 'newspaper') return <Group opacity={0.13} listening={false}>{Array.from({ length: 12 }, (_, i) => <Group key={i}><Text x={12} y={i * 64 + 6} text={i % 2 ? 'PHOTO  NEWS  •  SPECIAL EDITION' : 'THE DAILY MOMENT'} fontFamily="Georgia" fontStyle="bold" fontSize={13} fill={accent}/><Line points={[12, i * 64 + 27, width - 12, i * 64 + 27]} stroke={accent} strokeWidth={2}/><Line points={[12, i * 64 + 36, width * .45, i * 64 + 36]} stroke={accent}/><Line points={[width * .55, i * 64 + 36, width - 12, i * 64 + 36]} stroke={accent}/></Group>)}</Group>
+  if (pattern === 'comic') return <Group opacity={0.17} listening={false}>{Array.from({ length: 52 }, (_, i) => <Circle key={i} x={(i * 61) % width} y={(i * 103) % height} radius={2 + i % 3} fill={accent}/>)}<Text x={width * .08} y={height * .18} text="WOW!" fontStyle="bold" fontSize={44} rotation={-12} fill={accent}/><Text x={width * .62} y={height * .72} text="POP!" fontStyle="bold" fontSize={38} rotation={9} fill={secondary}/></Group>
+  if (pattern === 'ornament') return <Group opacity={0.18} listening={false}>{Array.from({ length: Math.ceil(height / 48) }, (_, i) => <Group key={i}><Text x={7} y={i * 48} text="◆◇◆" fontSize={15} fill={accent}/><Text x={width - 55} y={i * 48} text="◆◇◆" fontSize={15} fill={accent}/></Group>)}</Group>
   return <Group opacity={0.13} listening={false}>{Array.from({ length: Math.ceil(height / 55) }, (_, i) => <Line key={i} points={[0, i * 55 + 15, width * .25, i * 55, width * .5, i * 55 + 15, width * .75, i * 55 + 30, width, i * 55 + 15]} stroke={accent} strokeWidth={4} tension={0.35}/>)}</Group>
 }
 

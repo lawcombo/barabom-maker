@@ -32,6 +32,7 @@ const stickerCategories = [
   { id:'seasons', label:'계절', items:['🌸','☀️','🏖️','🍉','🌊','🍁','🎃','🦇','❄️','☃️','🎄','🎅','🧧','🎇','🌾','🧣'] },
 ] as const
 const recommendedTexts = ['OUR MEMORIES','BEST FRIENDS','LOVE YOU','HAPPY BIRTHDAY','FOREVER TOGETHER','오늘의 추억','우리의 네컷','행복한 하루']
+const templateCategories = ['전체', ...Array.from(new Set(templates.map((template) => template.category)))]
 
 function SectionTitle({ title, description }: { title: string; description?: string }) {
   return <div className="mb-4"><h2 className="text-base font-bold text-slate-900">{title}</h2>{description && <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>}</div>
@@ -56,6 +57,7 @@ export function Editor({ onExit }: { onExit: () => void }) {
   const [showSafeArea, setShowSafeArea] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [stickerCategory, setStickerCategory] = useState<string>(stickerCategories[0].id)
+  const [templateCategory, setTemplateCategory] = useState('전체')
   const [downloadOpen, setDownloadOpen] = useState(false)
   const [projects, setProjects] = useState<EditorDocument[]>([])
   const [status, setStatus] = useState('자동 저장 켜짐')
@@ -254,7 +256,10 @@ export function Editor({ onExit }: { onExit: () => void }) {
 
   const renderTab = () => {
     if (tab === 'layout') return <><SectionTitle title="레이아웃" description="사진 수와 배치 방향을 선택하세요."/><p className="field-label">컷 수</p><div className="grid grid-cols-3 gap-2">{Array.from({ length:9 },(_,i)=>i+1).map((count)=><button key={count} onClick={()=>setCutCount(count)} className={`choice-btn ${document.cutCount===count?'active':''}`}>{count}컷</button>)}</div><p className="field-label mt-6">배치 방식</p><div className="grid grid-cols-3 gap-2">{(['portrait','landscape','grid'] as Orientation[]).map((orientation)=><button key={orientation} onClick={()=>setOrientation(orientation)} className={`layout-thumb ${document.orientation===orientation?'active':''}`}><span className={`mini-layout ${orientation==='grid'?'gridmode':orientation}`} >{Array.from({ length:Math.min(document.cutCount,6) },(_,i)=><i key={i}/>)}</span><small>{layoutLabel(document.cutCount,orientation)}</small></button>)}</div></>
-    if (tab === 'templates') return <><SectionTitle title="디자인 템플릿" description="사진은 그대로 두고 디자인만 바뀝니다."/><div className="grid grid-cols-2 gap-3">{templates.map((template)=><button key={template.id} onClick={()=>applyTemplate(template.id)} className={`template-card ${document.templateId===template.id?'active':''}`} style={{ background:template.background, color:template.colors[1] }}><span className="template-photos">{[0,1,2,3].map(i=><i key={i} style={{ borderColor:template.borderColor }}/>)}</span><strong>{template.name}</strong><small>{template.category}</small></button>)}</div></>
+    if (tab === 'templates') {
+      const visibleTemplates = templateCategory === '전체' ? templates : templates.filter((template) => template.category === templateCategory)
+      return <><SectionTitle title="디자인 템플릿" description={`${templates.length}가지 디자인 중 분위기에 맞게 골라보세요. 사진은 그대로 유지됩니다.`}/><div className="mb-4 flex flex-wrap gap-2">{templateCategories.map((category)=><button key={category} onClick={()=>setTemplateCategory(category)} className={`chip ${category===templateCategory?'border-violet-400 bg-violet-50 text-violet-700':''}`}>{category}</button>)}</div><div className="grid grid-cols-2 gap-3">{visibleTemplates.map((template)=><button key={template.id} onClick={()=>applyTemplate(template.id)} className={`template-card ${document.templateId===template.id?'active':''}`} style={{ background:template.background, color:template.colors[1] }}><span className="template-preview-decoration" style={{ color:template.colors[2] }}>{template.decoration}</span><span className="template-preview-caption">{template.topCaption}</span><span className="template-photos">{[0,1,2,3].map(i=><i key={i} style={{ borderColor:template.borderColor }}/>)}</span><strong>{template.name}</strong><small>{template.category}</small></button>)}</div></>
+    }
     if (tab === 'photos') return <><SectionTitle title="사진" description="여러 장을 고르면 빈 컷부터 자동 배치해요."/><button className="primary-btn w-full" onClick={()=>requestUpload()}><ImagePlus size={17}/> 사진 불러오기</button><div className="mt-4 rounded-xl bg-violet-50 p-4 text-xs leading-5 text-violet-700">캔버스의 원하는 컷에 사진 파일을 직접 끌어다 놓을 수도 있어요.</div><div className="mt-5 grid grid-cols-3 gap-2">{document.photos.map((photo,index)=><button key={index} onClick={()=>photo?setSelected({type:'slot',id:String(index)}):requestUpload(index)} className={`photo-tile ${selectedPhotoIndex===index?'active':''}`}>{photo?<img src={photo.src} alt={`${index+1}번 컷`}/>:<Plus/>}<span>{index+1}</span></button>)}</div><button className="secondary-btn mt-5 w-full" onClick={()=>commit(d=>({...d,photos:d.photos.map(()=>null)}))}><Trash2 size={15}/> 모든 사진 비우기</button></>
     if (tab === 'text') return <><SectionTitle title="텍스트" description="캔버스 어디든 문구를 추가할 수 있어요."/><button className="primary-btn w-full" onClick={()=>addText()}><Type size={17}/> 텍스트 추가</button><p className="field-label mt-6">추천 문구</p><div className="flex flex-wrap gap-2">{recommendedTexts.map(text=><button key={text} onClick={()=>addText(text)} className="chip">{text}</button>)}<button onClick={()=>addText(new Intl.DateTimeFormat('ko-KR').format(new Date()))} className="chip">오늘 날짜</button></div></>
     if (tab === 'stickers') {

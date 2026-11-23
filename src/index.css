@@ -50,6 +50,8 @@ button { -webkit-tap-highlight-color: transparent; }
   .template-card.active { @apply border-violet-600 ring-2 ring-violet-200; }
   .template-card strong { @apply relative z-10 text-xs; }
   .template-card small { @apply relative z-10 mt-0.5 text-[10px] opacity-65; }
+  .template-preview-decoration { @apply absolute -right-2 -top-5 text-[68px] font-black opacity-20; }
+  .template-preview-caption { @apply absolute left-4 top-2 z-10 max-w-[70%] truncate text-[8px] font-black tracking-[.18em] opacity-70; }
   .template-photos { @apply absolute inset-x-4 top-3 grid h-[76px] grid-cols-2 gap-1 rounded-md bg-white/30 p-1.5; }
   .template-photos i { @apply rounded-sm border bg-slate-300/70; }
   .photo-tile { @apply relative aspect-square overflow-hidden rounded-lg border-2 border-slate-200 bg-slate-50 text-slate-300; }
