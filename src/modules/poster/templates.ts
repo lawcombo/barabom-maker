@@ -1,4 +1,4 @@
-import type { PosterDocument, PosterElement, PosterPreset, PosterSize, PosterTemplate } from './types'
+import type { PosterDocument, PosterElement, PosterImageElement, PosterPreset, PosterSize, PosterTemplate, PosterTextElement } from './types'
 
 export const POSTER_WIDTH = 720
 
@@ -41,70 +41,193 @@ const base = (kind: PosterElement['kind'], id: string, name: string, x: number, 
   kind, id, name, x, y, width, height, rotation:0, opacity:1, visible:true, locked:false,
 })
 
-const text = (id:string, name:string, value:string, x:number, y:number, width:number, height:number, fontSize:number, fill:string, fontFamily='Noto Sans KR', align:'left'|'center'|'right'='left', fontStyle:'normal'|'bold'='bold'): PosterElement => ({
-  ...base('text',id,name,x,y,width,height), text:value, fontFamily, fontSize, fontStyle, fill, align, letterSpacing:0, lineHeight:1.12, stroke:'transparent', strokeWidth:0, shadowColor:'#000000', shadowBlur:0, background:'transparent', underline:false,
-}) as PosterElement
+const text = (id:string, name:string, value:string, x:number, y:number, width:number, height:number, fontSize:number, fill:string, fontFamily='Noto Sans KR', align:PosterTextElement['align']='left', fontStyle:PosterTextElement['fontStyle']='bold'): PosterTextElement => ({
+  ...base('text',id,name,x,y,width,height), kind:'text', text:value, fontFamily, fontSize, fontStyle, fill, align, letterSpacing:0, lineHeight:1.12, stroke:'transparent', strokeWidth:0, shadowColor:'#000000', shadowBlur:0, background:'transparent', underline:false,
+})
 
 const shape = (id:string, name:string, shapeType:'rect'|'circle'|'line'|'banner', x:number, y:number, width:number, height:number, fill:string, radius=0): PosterElement => ({
   ...base('shape',id,name,x,y,width,height), shape:shapeType, fill, stroke:'transparent', strokeWidth:0, radius,
 }) as PosterElement
 
-const slot = (id:string, name:string, x:number, y:number, width:number, height:number, src:string, mask:'rect'|'round'|'circle'|'oval'='round'): PosterElement => ({
-  ...base('image',id,name,x,y,width,height), src, isSlot:true, mask, zoom:1, offsetX:0, offsetY:0, flipX:false, flipY:false, brightness:0, contrast:0, saturation:0, filter:'none',
-}) as PosterElement
+const slot = (id:string, name:string, x:number, y:number, width:number, height:number, rotation=0): PosterImageElement => ({
+  ...base('image',id,name,x,y,width,height), kind:'image', src:'', isSlot:true, mask:'rect', rotation,
+  zoom:1, offsetX:0, offsetY:0, flipX:false, flipY:false, brightness:0, contrast:0, saturation:0, filter:'none',
+})
+
+const templatesWithCustomArtwork: Record<number, { name:string; file:string; title:string; accent:string }> = {
+  0: { name:'시트러스 서머', file:'poster-citrus.jpg', title:'여름의 조각', accent:'#123f3c' },
+  3: { name:'크림 라테', file:'poster-latte.jpg', title:'Cream Latte', accent:'#3e2c22' },
+  12: { name:'바다가 있는 길', file:'coastal-travel.webp', title:'바다가 있는 길', accent:'#122e45' },
+}
 
 function makeTemplate(categoryIndex:number, variant:number): PosterTemplate {
-  const [category, headline, subline, dark, accent, light, deco, assetFile] = categories[categoryIndex]
-  const assetSrc = posterAsset(assetFile)
-  const landscape = variant === 2
-  const size = landscape ? posterSizes['a4-landscape'] : posterSizes['a4-portrait']
-  const w = size.width
-  const h = size.height
-  const prefix = `tpl-${categoryIndex + 1}-${variant + 1}`
+  const [category, headline, subline, dark, accent, light, , assetFile] = categories[categoryIndex]
+  const size = posterSizes[variant === 2 ? 'a4-landscape' : 'a4-portrait']
+  const { width:w, height:h } = size
+  const id = `tpl-${categoryIndex + 1}-${variant + 1}`
+  const layer = (key:string) => `${id}-${key}`
+  const frame = variant === 1
+  const scrapbook = frame && (categoryIndex === 11 || categoryIndex === 17)
+  const oak = frame && (categoryIndex === 9 || categoryIndex === 16)
+  const artwork = variant === 0 ? templatesWithCustomArtwork[categoryIndex] : undefined
+  let name = artwork?.name ?? `${category} ${['포스터','액자','에디토리얼'][variant]}`
+  let backgroundFile = artwork?.file ?? assetFile
   let elements: PosterElement[]
-  if (variant === 0) {
-    elements = [
-      shape(`${prefix}-accent`,'포인트 블록','rect',w*.5,h*.17,w*.88,h*.22,accent,22),
-      text(`${prefix}-tag`,'카테고리',category,w*.30,h*.09,w*.36,32,15,dark,'Noto Sans KR','left','bold'),
-      text(`${prefix}-title`,'제목',headline,w*.49,h*.19,w*.74,130,54,dark,categoryIndex % 3 === 0 ? 'Black Han Sans' : 'Noto Sans KR'),
-      text(`${prefix}-sub`,'설명',subline,w*.445,h*.30,w*.65,64,22,dark,'Noto Serif KR','left','normal'),
-      slot(`${prefix}-photo`,'메인 사진',w*.5,h*.62,w*.78,h*.48,assetSrc,'round'),
-      text(`${prefix}-deco`,'장식',deco,w*.87,h*.10,w*.16,60,34,dark,'Noto Serif KR','center','bold'),
-      text(`${prefix}-info`,'상세 안내','2026. 12. 24  ·  BARABOM STUDIO',w*.5,h*.92,w*.76,38,16,dark,'Noto Sans KR','center','normal'),
+
+  if (scrapbook) {
+    name = categoryIndex === 11 ? '사진 일기 · 4컷' : '오래된 장면 · 4컷'
+    backgroundFile = 'poster-scrapbook.jpg'
+    const photos = [
+      slot(layer('photo-1'),'사진 1',w*.33,h*.37,w*.34,h*.24,-7),
+      slot(layer('photo-2'),'사진 2',w*.68,h*.45,w*.30,h*.20,6),
+      slot(layer('photo-3'),'사진 3',w*.31,h*.68,w*.32,h*.20,5),
+      slot(layer('photo-4'),'사진 4',w*.65,h*.71,w*.31,h*.24,-8),
     ]
-  } else if (variant === 1) {
     elements = [
-      shape(`${prefix}-bar`,'세로 포인트','rect',w*.06,h*.5,w*.12,h,accent),
-      text(`${prefix}-deco`,'장식',deco,w*.06,h*.12,w*.12,80,35,dark,'Noto Serif KR','center','bold'),
-      slot(`${prefix}-photo`,'메인 사진',w*.58,h*.34,w*.66,h*.48,assetSrc,categoryIndex % 2 ? 'circle' : 'round'),
-      text(`${prefix}-title`,'제목',headline,w*.58,h*.67,w*.66,120,50,dark,'Noto Sans KR','center','bold'),
-      text(`${prefix}-sub`,'설명',subline,w*.58,h*.78,w*.58,70,21,dark,'Noto Serif KR','center','normal'),
-      shape(`${prefix}-button`,'안내 박스','rect',w*.58,h*.89,w*.44,58,dark,29),
-      text(`${prefix}-info`,'상세 안내','자세히 보기  ·  02-123-4567',w*.58,h*.89,w*.42,40,15,light,'Noto Sans KR','center','bold'),
+      text(layer('title'),'제목',categoryIndex === 11 ? '우리의 사진 일기' : '오래된 장면',w*.45,h*.13,w*.66,h*.09,53,'#243e84','Nanum Pen Script'),
+      text(layer('sub'),'설명','오래 기억하고 싶은 순간들',w*.45,h*.195,w*.66,28,21,'#243e84','Gowun Batang','left','normal'),
+      ...photos.flatMap((photo) => [
+        { ...shape(`${photo.id}-mat`,'인화지','rect',photo.x,photo.y,photo.width + 18,photo.height + 18,'#fffdf6'), rotation:photo.rotation },
+        photo,
+      ]),
+      text(layer('info'),'날짜','MOMENTS TO KEEP',w*.36,h*.91,w*.52,28,15,'#243e84'),
+    ]
+  } else if (oak) {
+    name = categoryIndex === 16 ? '햇살 드는 오크 액자' : '우리의 하루 · 오크 액자'
+    backgroundFile = 'poster-oak-frame.jpg'
+    elements = [
+      slot(layer('photo-1'),'액자 사진',w*.363,h*.479,w*.388,h*.388),
+      text(layer('title'),'제목',categoryIndex === 16 ? '소중한 순간' : '우리의 하루',w*.48,h*.895,w*.82,h*.073,42,'#3e2d21','Gowun Batang','center'),
+    ]
+  } else if (frame) {
+    const frameFill = categoryIndex % 3 === 0 ? dark : light
+    const ink = frameFill === dark ? light : dark
+    const photoY = categoryIndex % 2 ? .48 : .50
+    elements = [
+      { ...shape(layer('wash'),'배경 보정','rect',w/2,h/2,w,h,dark), opacity:.48, locked:true },
+      shape(layer('mat'),'액자 여백','rect',w*.5,h*photoY,w*.77,h*.60,frameFill,3),
+      slot(layer('photo-1'),'액자 사진',w*.5,h*(photoY-.022),w*.67,h*.49),
+      text(layer('tag'),'상단 문구',category,w*.5,h*.10,w*.74,35,20,'#ffffff','Noto Sans KR','center'),
+      text(layer('title'),'제목',headline,w*.5,h*(photoY+.25),w*.67,h*.064,34,ink,'Gowun Batang','center'),
+      text(layer('sub'),'설명',subline,w*.5,h*.90,w*.78,50,22,'#ffffff','Noto Sans KR','center','normal'),
+    ]
+  } else if (artwork) {
+    const latte = categoryIndex === 3
+    const travel = categoryIndex === 12
+    const align = latte ? 'center' : 'left'
+    const x = latte ? .5 : .52
+    elements = [
+      text(layer('tag'),'상단 문구',category,w*x,h*.105,w*.80,32,18,artwork.accent,'Noto Sans KR',align),
+      text(layer('title'),'제목',artwork.title,w*x,h*.205,w*.80,h*.115,latte ? 69 : 75,artwork.accent,'Gowun Batang',align),
+      text(layer('sub'),'설명',latte ? '부드러운 크림과 깊은 에스프레소' : subline,w*x,h*.295,w*.80,32,22,artwork.accent,'Noto Sans KR',align,'normal'),
+      { ...text(layer('info'),'상세 안내',latte ? 'SEASONAL MENU  /  ₩ 6,500' : 'BARABOM STUDIO',w*x,h*.922,w*.80,40,18,latte ? artwork.accent : '#ffffff','Noto Sans KR',align), shadowBlur:travel ? 9 : 0 },
+    ]
+  } else if (variant === 2) {
+    const rightSide = categoryIndex % 2 === 1
+    const center = rightSide ? .76 : .24
+    const serif = categoryIndex % 3 === 0
+    elements = [
+      shape(layer('panel'),'편집 면','rect',w*center,h/2,w*.48,h,dark),
+      text(layer('tag'),'상단 문구',category,w*center,h*.15,w*.37,42,23,accent,'Noto Sans KR'),
+      shape(layer('line'),'구분선','rect',w*center,h*.236,w*.37,2,accent),
+      text(layer('title'),'제목',headline,w*center,h*.42,w*.37,h*.26,57,light,serif ? 'Gowun Batang' : 'Black Han Sans'),
+      text(layer('sub'),'설명',subline,w*center,h*.65,w*.37,72,24,light,'Noto Sans KR','left','normal'),
+      text(layer('info'),'상세 안내','BARABOM STUDIO',w*center,h*.87,w*.37,32,17,accent),
     ]
   } else {
+    const bottom = categoryIndex % 2 === 0
+    const center = categoryIndex % 3 === 1
+    const serif = categoryIndex % 3 === 2
+    const align = center ? 'center' : 'left'
+    const titleY = bottom ? .76 : .225
     elements = [
-      slot(`${prefix}-photo`,'메인 사진',w*.68,h*.5,w*.56,h*.78,assetSrc,'round'),
-      shape(`${prefix}-line`,'구분선','rect',w*.20,h*.20,w*.14,8,accent,4),
-      text(`${prefix}-tag`,'카테고리',category.toUpperCase(),w*.27,h*.13,w*.28,30,15,accent,'Noto Sans KR','left','bold'),
-      text(`${prefix}-title`,'제목',headline,w*.30,h*.36,w*.34,155,52,dark,'Noto Sans KR','left','bold'),
-      text(`${prefix}-sub`,'설명',subline,w*.29,h*.58,w*.32,90,21,dark,'Noto Serif KR','left','normal'),
-      text(`${prefix}-info`,'상세 안내','DEC 24 — 7PM\nBARABOM STUDIO',w*.28,h*.79,w*.30,70,16,dark,'Noto Sans KR','left','bold'),
+      { ...shape(layer('wash'),'배경 보정','rect',w/2,h/2,w,h,'#101526'), opacity:.22, locked:true },
+      { ...shape(layer('panel'),'문구 배경','rect',w*.5,h*(bottom ? .79 : .24),w*.89,h*.35,dark,2), opacity:.89 },
+      text(layer('tag'),'상단 문구',category,w*.5,h*(titleY-.11),w*.75,33,20,light,'Noto Sans KR',align),
+      text(layer('title'),'제목',headline,w*.5,h*titleY,w*.75,h*.13,headline.length > 12 ? 53 : 70,light,serif ? 'Gowun Batang' : 'Black Han Sans',align),
+      text(layer('sub'),'설명',subline,w*.5,h*(titleY+.098),w*.75,40,23,light,'Noto Sans KR',align,'normal'),
+      text(layer('info'),'상세 안내','BARABOM STUDIO',w*.5,h*(titleY+.153),w*.75,28,16,light,'Noto Sans KR',align),
     ]
   }
+
   return {
-    id:prefix,
-    name:`${category} ${['시그니처','포커스','에디토리얼'][variant]}`,
-    category,
-    tags:[category,headline,'포스터',landscape?'가로':'세로'],
-    recommended: variant === 0 && categoryIndex < 6,
+    id, name, category, kind:frame ? 'frame' : 'poster',
+    tags:[category,headline,'포스터',variant === 2 ? '가로' : '세로'],
+    recommended:Boolean(artwork || (scrapbook && categoryIndex === 11) || (oak && categoryIndex === 16)),
     size:{...size},
-    background:{ type:'color', color:light, secondary:accent, imageSrc:'', opacity:1 },
+    background:{ type:'image', color:light, secondary:accent, imageSrc:posterAsset(backgroundFile), opacity:1 },
     elements,
   }
 }
 
-export const posterTemplates: PosterTemplate[] = categories.flatMap((_, categoryIndex) => [0,1,2].map((variant) => makeTemplate(categoryIndex, variant)))
+const extraFrames = [
+  { id:'gallery-frame', name:'모노 갤러리 · 1컷', category:'프리미엄', file:'poster-gallery-frame.jpg', color:'#efebe5' },
+  { id:'botanical-frame', name:'보태니컬 타원 액자', category:'웨딩·기념일', file:'poster-botanical-paper.jpg', color:'#f4eddf' },
+  { id:'polaroid-duo', name:'폴라로이드 듀오 · 2컷', category:'사진 콜라주', file:'poster-scrapbook.jpg', color:'#f5e9d3' },
+  { id:'film-strip', name:'필름 스트립 · 3컷', category:'감성·빈티지', file:'vintage-camera.webp', color:'#201d1b' },
+] as const
+
+function makeExtraFrame(design: typeof extraFrames[number]): PosterTemplate {
+  const {id, name, category, file, color} = design
+  const size = posterSizes['a4-portrait']
+  const {width:w, height:h} = size
+  const layer = (key:string) => `${id}-${key}`
+  let elements: PosterElement[]
+
+  if (id === 'gallery-frame') {
+    elements = [
+      text(layer('title'),'제목','모노 갤러리',w*.5,h*.095,w*.8,60,41,'#292421','Gowun Batang','center'),
+      slot(layer('photo'),'갤러리 사진',w*.5,h*.50,w*.42,h*.394),
+      text(layer('sub'),'설명','오래 바라보고 싶은 장면',w*.5,h*.927,w*.8,40,21,'#292421','Noto Sans KR','center','normal'),
+    ]
+  } else if (id === 'botanical-frame') {
+    elements = [
+      text(layer('title'),'제목','우리의 계절',w*.5,h*.13,w*.78,80,66,'#445341','Nanum Pen Script','center'),
+      { ...slot(layer('photo'),'타원형 사진',w*.478,h*.466,w*.763,h*.477), mask:'oval' },
+      text(layer('sub'),'설명','함께여서 더 아름다운 순간',w*.54,h*.83,w*.70,62,28,'#445341','Gowun Batang','center','normal'),
+    ]
+  } else if (id === 'polaroid-duo') {
+    const photos = [
+      slot(layer('photo-1'),'사진 1',w*.375,h*.365,w*.51,h*.265,-9),
+      slot(layer('photo-2'),'사진 2',w*.62,h*.66,w*.51,h*.265,8),
+    ]
+    elements = [
+      text(layer('title'),'제목','둘이서, 오늘',w*.43,h*.115,w*.68,84,63,'#243e84','Nanum Pen Script'),
+      ...photos.flatMap((photo) => [
+        {
+          ...shape(`${photo.id}-mat`,'폴라로이드 종이','rect',photo.x,photo.y + 16,photo.width + 28,photo.height + 54,'#fffdf4'),
+          rotation:photo.rotation,
+        },
+        photo,
+      ]),
+      text(layer('sub'),'메모','오늘의 장면을 기억해요.',w*.54,h*.925,w*.7,50,31,'#243e84','Nanum Pen Script','center'),
+    ]
+  } else {
+    const holeRows = Array.from({length:12}, (_, index) => .22 + index * .0515)
+    elements = [
+      { ...shape(layer('shade'),'배경 보정','rect',w/2,h/2,w,h,'#201b19'), opacity:.83, locked:true },
+      text(layer('title'),'제목','FILM NOTES',w*.5,h*.109,w*.85,72,61,'#fff0d5','Black Han Sans','center'),
+      shape(layer('strip'),'필름 바탕','rect',w*.5,h*.505,w*.79,h*.64,'#171615',5),
+      ...holeRows.flatMap((y, index) => [.133,.867].map((x, edge) => (
+        shape(layer(`hole-${index}-${edge}`),'필름 구멍','rect',w*x,h*y,w*.027,h*.016,'#cab18d',2)
+      ))),
+      ...[.299, .505, .711].map((y, index) => slot(layer(`photo-${index + 1}`),`사진 ${index + 1}`,w*.5,h*y,w*.65,h*.189)),
+      text(layer('sub'),'메모','기억에 남은 세 장면',w*.5,h*.90,w*.73,40,25,'#fff0d5','Gowun Batang','center'),
+    ]
+  }
+
+  return {
+    id, name, category, kind:'frame', tags:[category,'액자','세로'], recommended:true,
+    size:{...size},
+    background:{type:'image',color,secondary:color,imageSrc:posterAsset(file),opacity:1},
+    elements,
+  }
+}
+
+export const posterTemplates: PosterTemplate[] = [
+  ...categories.flatMap((_, categoryIndex) => [0,1,2].map((variant) => makeTemplate(categoryIndex, variant))),
+  ...extraFrames.map(makeExtraFrame),
+]
 export const posterCategories = ['전체', ...categories.map((item) => item[0])]
 
 export function templateById(id: string) { return posterTemplates.find((item) => item.id === id) }

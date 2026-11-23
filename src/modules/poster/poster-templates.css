@@ -1,0 +1,118 @@
+.poster-template-upload {
+  margin: 15px 0 12px;
+}
+
+.poster-template-kinds {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr;
+  gap: 3px;
+  padding: 4px;
+  border-radius: 10px;
+  background: #f1f5f9;
+}
+
+.poster-template-kinds button {
+  border-radius: 7px;
+  padding: 8px 6px;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.poster-template-kinds button[aria-pressed="true"] {
+  background: #fff;
+  color: #6d28d9;
+  box-shadow: 0 1px 3px #0f172a18;
+}
+
+.poster-design-results {
+  margin: 12px 0 10px;
+  color: #475569;
+  font-size: 12px;
+}
+
+.poster-design-results p {
+  margin: 4px 0 0;
+  line-height: 1.55;
+}
+
+.poster-design-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+  text-align: left;
+}
+
+.poster-design-card:hover,
+.poster-design-card[aria-pressed="true"] {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 1px #8b5cf6;
+}
+
+.poster-design-card-mat {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 720 / 1018;
+  overflow: hidden;
+  background: #eff1f5;
+}
+
+.poster-design-art {
+  position: relative;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  container-type: inline-size;
+}
+
+.poster-design-art > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.poster-design-layer {
+  position: absolute;
+  overflow: hidden;
+}
+
+.poster-design-text {
+  display: grid;
+  align-content: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.poster-design-slot {
+  display: grid;
+  place-items: center;
+  border: 1px solid #ffffffc9;
+  background: #e2e8f0aa;
+  color: #475569;
+  font-size: 13cqw;
+}
+
+.poster-design-caption {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px;
+  line-height: 1.35;
+}
+
+.poster-design-caption strong {
+  font-size: 12px;
+}
+
+.poster-design-caption > span {
+  color: #64748b;
+  font-size: 11px;
+}

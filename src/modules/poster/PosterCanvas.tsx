@@ -3,12 +3,14 @@ import Konva from 'konva'
 import { Arrow, Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text, Transformer } from 'react-konva'
 import useImage from 'use-image'
 import type { PosterCanvasHandle, PosterDocument, PosterElement, PosterImageElement } from './types'
+import { findPhotoSlotAt } from './photoSlots'
 
 interface Props {
   document: PosterDocument
   scale: number
   selectedId: string | null
   exporting: boolean
+  dropTargetId: string | null
   showSafeArea: boolean
   onSelect: (id: string | null) => void
   onChange: (id: string, patch: Partial<PosterElement>) => void
@@ -22,15 +24,20 @@ function Background({ document }: { document: PosterDocument }) {
     const cover = Math.max(width / image.width, height / image.height)
     const drawWidth = image.width * cover
     const drawHeight = image.height * cover
-    return <KonvaImage image={image} x={(width-drawWidth)/2} y={(height-drawHeight)/2} width={drawWidth} height={drawHeight} opacity={document.background.opacity}/>
+    return <KonvaImage image={image} x={(width-drawWidth)/2} y={(height-drawHeight)/2} width={drawWidth} height={drawHeight} opacity={document.background.opacity} listening={false}/>
   }
   if (document.background.type === 'gradient') {
-    return <Rect width={width} height={height} fillLinearGradientStartPoint={{x:0,y:0}} fillLinearGradientEndPoint={{x:width,y:height}} fillLinearGradientColorStops={[0,document.background.color,1,document.background.secondary]} opacity={document.background.opacity}/>
+    return <Rect width={width} height={height} fillLinearGradientStartPoint={{x:0,y:0}} fillLinearGradientEndPoint={{x:width,y:height}} fillLinearGradientColorStops={[0,document.background.color,1,document.background.secondary]} opacity={document.background.opacity} listening={false}/>
   }
-  return <Rect width={width} height={height} fill={document.background.color} opacity={document.background.opacity}/>
+  return <Rect width={width} height={height} fill={document.background.color} opacity={document.background.opacity} listening={false}/>
 }
 
-function ImageContent({ element, selected, onChange }: { element: PosterImageElement; selected: boolean; onChange:(patch:Partial<PosterElement>)=>void }) {
+function ImageContent({ element, selected, exporting, onChange }: {
+  element: PosterImageElement
+  selected: boolean
+  exporting: boolean
+  onChange: (patch: Partial<PosterElement>) => void
+}) {
   const [image] = useImage(element.src)
   const imageRef = useRef<Konva.Image>(null)
   const clip = (ctx: Konva.Context) => {
@@ -56,10 +63,15 @@ function ImageContent({ element, selected, onChange }: { element: PosterImageEle
     node.getLayer()?.batchDraw()
     return () => { node.clearCache() }
   }, [image, element.brightness, element.contrast, element.saturation, element.filter, element.width, element.height, element.zoom])
-  if (!image) return <>
-    <Rect x={-element.width/2} y={-element.height/2} width={element.width} height={element.height} fill="#eef2f7" stroke="#94a3b8" strokeWidth={2} dash={[9,7]} cornerRadius={element.mask==='round'?24:0}/>
-    <Text x={-element.width/2} y={-20} width={element.width} text="+ 사진 넣기" align="center" fontSize={18} fontStyle="bold" fill="#64748b" listening={false}/>
-  </>
+  if (!image) {
+    if (exporting) return null
+    return <>
+      <Group clipFunc={clip}>
+        <Rect x={-element.width/2} y={-element.height/2} width={element.width} height={element.height} fill="#e2e8f0" opacity={.62}/>
+      </Group>
+      <Text x={-element.width/2} y={-24} width={element.width} height={48} text="사진 놓기 또는 클릭" align="center" verticalAlign="middle" fontSize={Math.min(18, element.width / 8)} fontStyle="bold" fill="#334155" listening={false}/>
+    </>
+  }
   const cover=Math.max(element.width/image.width, element.height/image.height)
   const drawWidth=image.width*cover*element.zoom
   const drawHeight=image.height*cover*element.zoom
@@ -84,9 +96,10 @@ function ImageContent({ element, selected, onChange }: { element: PosterImageEle
   </Group>
 }
 
-function ElementNode({ element, selected, onSelect, onChange, onRequestImage }: {
+function ElementNode({ element, selected, exporting, onSelect, onChange, onRequestImage }: {
   element:PosterElement
   selected:boolean
+  exporting:boolean
   onSelect:()=>void
   onChange:(patch:Partial<PosterElement>)=>void
   onRequestImage:()=>void
@@ -121,7 +134,7 @@ function ElementNode({ element, selected, onSelect, onChange, onRequestImage }: 
       onDragEnd={(event)=>onChange({x:event.currentTarget.x(),y:event.currentTarget.y()})}
       onTransformEnd={finishTransform}
     >
-      {element.kind==='image'&&<ImageContent element={element} selected={selected} onChange={onChange}/>} 
+      {element.kind==='image'&&<ImageContent element={element} selected={selected && !element.locked} exporting={exporting} onChange={onChange}/>}
       {element.kind==='text'&&<>
         {element.background!=='transparent'&&<Rect x={-element.width/2} y={-element.height/2} width={element.width} height={element.height} fill={element.background} cornerRadius={8}/>} 
         <Text x={-element.width/2} y={-element.height/2} width={element.width} height={element.height} text={element.text} fontFamily={element.fontFamily} fontSize={element.fontSize} fontStyle={element.fontStyle} fill={element.fill} align={element.align} verticalAlign="middle" letterSpacing={element.letterSpacing} lineHeight={element.lineHeight} stroke={element.stroke} strokeWidth={element.strokeWidth} shadowColor={element.shadowColor} shadowBlur={element.shadowBlur} textDecoration={element.underline?'underline':''}/>
@@ -152,11 +165,39 @@ function ShapeContent({element}:{element:Extract<PosterElement,{kind:'shape'}>})
   return <Rect x={-w/2} y={-h/2} width={w} height={h} fill={element.fill} stroke={element.stroke} strokeWidth={element.strokeWidth} cornerRadius={element.radius}/>
 }
 
-export const PosterCanvas=forwardRef<PosterCanvasHandle,Props>(function PosterCanvas({document,scale,selectedId,exporting,showSafeArea,onSelect,onChange,onRequestImage},ref){
+export const PosterCanvas=forwardRef<PosterCanvasHandle,Props>(function PosterCanvas({document,scale,selectedId,exporting,dropTargetId,showSafeArea,onSelect,onChange,onRequestImage},ref){
   const stageRef=useRef<Konva.Stage>(null)
-  useImperativeHandle(ref,()=>({toDataURL:(mimeType,pixelRatio,quality=.95)=>stageRef.current?.toDataURL({mimeType,pixelRatio,quality})||''}),[])
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const {width, height} = document.size
+  useImperativeHandle(ref, () => ({
+    toDataURL: (mimeType, pixelRatio, quality=.95, outputSize) => {
+      const stage = stageRef.current
+      if (!stage) return ''
+      if (!outputSize) return stage.toDataURL({mimeType,pixelRatio,quality})
+
+      const canvas = stage.toCanvas({pixelRatio})
+      if (canvas.width === outputSize.width && canvas.height === outputSize.height) return canvas.toDataURL(mimeType, quality)
+
+      const resized = window.document.createElement('canvas')
+      resized.width = outputSize.width
+      resized.height = outputSize.height
+      const context = resized.getContext('2d')
+      if (!context) return ''
+      context.drawImage(canvas, 0, 0, resized.width, resized.height)
+      return resized.toDataURL(mimeType, quality)
+    },
+    getPhotoSlotAt: (clientX, clientY) => {
+      const bounds = wrapperRef.current?.getBoundingClientRect()
+      if (!bounds?.width || !bounds.height) return null
+      const x = (clientX - bounds.left) * width / bounds.width
+      const y = (clientY - bounds.top) * height / bounds.height
+      if (x < 0 || x > width || y < 0 || y > height) return null
+      return findPhotoSlotAt(document.elements, x, y)
+    },
+  }), [document.elements, width, height])
   const selected=document.elements.find((element)=>element.id===selectedId)
-  return <div className="poster-stage-wrap" style={{width:document.size.width*scale,height:document.size.height*scale}}>
+  const dropTarget = document.elements.find((element) => element.id === dropTargetId)
+  return <div ref={wrapperRef} className="poster-stage-wrap" style={{width:width*scale,height:height*scale}}>
     <Stage
       ref={stageRef}
       width={document.size.width}
@@ -173,7 +214,8 @@ export const PosterCanvas=forwardRef<PosterCanvasHandle,Props>(function PosterCa
     >
       <Layer>
         <Background document={document}/>
-        {document.elements.map((element)=><ElementNode key={element.id} element={element} selected={!exporting&&selectedId===element.id} onSelect={()=>onSelect(element.id)} onChange={(patch)=>onChange(element.id,patch)} onRequestImage={()=>onRequestImage(element.id)}/>) }
+        {document.elements.map((element)=><ElementNode key={element.id} element={element} selected={!exporting&&selectedId===element.id} exporting={exporting} onSelect={()=>onSelect(element.id)} onChange={(patch)=>onChange(element.id,patch)} onRequestImage={()=>onRequestImage(element.id)}/>) }
+        {dropTarget && !exporting && <Rect x={dropTarget.x} y={dropTarget.y} width={dropTarget.width} height={dropTarget.height} offsetX={dropTarget.width/2} offsetY={dropTarget.height/2} rotation={dropTarget.rotation} fill="#ede9fe55" stroke="#7c3aed" strokeWidth={4} listening={false}/>}
         {showSafeArea&&!exporting&&<Rect x={28} y={28} width={document.size.width-56} height={document.size.height-56} stroke="#ef4444" strokeWidth={1.5} dash={[10,7]} opacity={.65} listening={false}/>} 
       </Layer>
     </Stage>

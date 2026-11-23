@@ -1,6 +1,7 @@
 export type PosterPreset = 'a4-portrait' | 'a4-landscape' | 'a3-portrait' | 'a3-landscape' | 'square' | 'feed' | 'story' | 'signage' | 'custom'
 export type PosterTab = 'templates' | 'photos' | 'text' | 'stickers' | 'shapes' | 'background' | 'layers' | 'projects'
 export type PosterMask = 'rect' | 'round' | 'circle' | 'oval'
+export type PosterTemplateKind = 'poster' | 'frame'
 
 export interface PosterElementBase {
   id: string
@@ -108,6 +109,7 @@ export interface PosterTemplate {
   id: string
   name: string
   category: string
+  kind: PosterTemplateKind
   tags: string[]
   recommended?: boolean
   size: PosterSize
@@ -116,5 +118,6 @@ export interface PosterTemplate {
 }
 
 export interface PosterCanvasHandle {
-  toDataURL: (mimeType: string, pixelRatio: number, quality?: number) => string
+  toDataURL: (mimeType: string, pixelRatio: number, quality?: number, outputSize?: { width: number; height: number }) => string
+  getPhotoSlotAt: (clientX: number, clientY: number) => string | null
 }

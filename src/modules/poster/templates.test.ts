@@ -2,19 +2,27 @@ import { describe, expect, it } from 'vitest'
 import { documentFromTemplate, posterCategories, posterTemplates } from './templates'
 
 describe('poster templates', () => {
-  it('provides exactly three usable templates for each of 18 categories', () => {
+  it('keeps the 18 categories and includes the additional frame designs', () => {
     expect(posterCategories).toHaveLength(19)
-    expect(posterTemplates).toHaveLength(54)
+    expect(posterTemplates).toHaveLength(58)
     for (const category of posterCategories.slice(1)) {
-      expect(posterTemplates.filter((template) => template.category === category)).toHaveLength(3)
+      expect(posterTemplates.filter((template) => template.category === category).length).toBeGreaterThanOrEqual(3)
     }
+    expect(posterTemplates.filter((template) => template.kind === 'frame')).toHaveLength(22)
   })
 
-  it('uses unique ids and editable layer data', () => {
-    expect(new Set(posterTemplates.map((template) => template.id)).size).toBe(54)
+  it('uses full-size background artwork and only adds empty slots to frame designs', () => {
+    expect(new Set(posterTemplates.map((template) => template.id)).size).toBe(posterTemplates.length)
     for (const template of posterTemplates) {
-      const image = template.elements.find((element) => element.kind === 'image')
-      expect(image?.kind === 'image' && image.src.endsWith('.webp')).toBe(true)
+      expect(template.background.type).toBe('image')
+      expect(template.background.imageSrc).toMatch(/\.(webp|jpg)$/)
+      const images = template.elements.filter((element) => element.kind === 'image')
+      if (template.kind === 'frame') {
+        expect(images.length).toBeGreaterThan(0)
+        expect(images.every((image) => image.isSlot && image.src === '')).toBe(true)
+      } else {
+        expect(images).toHaveLength(0)
+      }
       expect(template.elements.some((element) => element.kind === 'text')).toBe(true)
     }
   })

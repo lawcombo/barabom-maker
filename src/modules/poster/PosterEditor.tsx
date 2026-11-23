@@ -8,13 +8,14 @@ import {
   Undo2, Unlock, Upload, Wallpaper, ZoomIn, ZoomOut,
 } from 'lucide-react'
 import { PosterCanvas } from './PosterCanvas'
+import { PosterTemplateCard } from './PosterTemplateCard'
 import { createBlankPoster, documentFromTemplate, posterCategories, posterSizes, posterTemplates } from './templates'
 import { clonePosterElement, downloadDataUrl, posterEmojis, posterFonts, readPosterImage } from './utils'
 import {
   deletePosterProject, duplicatePosterProject, exportPosterProject, importPosterProject, listPosterProjects,
   loadLastPosterProject, savePosterProject,
 } from './storage'
-import type { PosterCanvasHandle, PosterDocument, PosterElement, PosterImageElement, PosterPreset, PosterShapeElement, PosterTab, PosterTextElement } from './types'
+import type { PosterCanvasHandle, PosterDocument, PosterElement, PosterImageElement, PosterPreset, PosterShapeElement, PosterTab, PosterTemplateKind, PosterTextElement } from './types'
 import './poster.css'
 
 const tabs: Array<{id:PosterTab;label:string;icon:typeof LayoutTemplate}> = [
@@ -40,6 +41,8 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
   const [selectedId,setSelectedId]=useState<string|null>(null)
   const [tab,setTab]=useState<PosterTab>('templates')
   const [templateCategory,setTemplateCategory]=useState('전체')
+  const [templateKind,setTemplateKind]=useState<PosterTemplateKind | 'all'>('all')
+  const [dropTargetId,setDropTargetId]=useState<string | null>(null)
   const [history,setHistory]=useState<PosterDocument[]>([])
   const [future,setFuture]=useState<PosterDocument[]>([])
   const [projects,setProjects]=useState<PosterDocument[]>([])
@@ -63,7 +66,11 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
   const uploadTarget=useRef<string|null>(null)
 
   const selected=useMemo(()=>document.elements.find((item)=>item.id===selectedId)??null,[document.elements,selectedId])
-  const visibleTemplates=useMemo(()=>templateCategory==='전체'?posterTemplates:posterTemplates.filter((template)=>template.category===templateCategory),[templateCategory])
+  const visibleTemplates = useMemo(() => posterTemplates
+    .filter((template) => (templateCategory === '전체' || template.category === templateCategory)
+      && (templateKind === 'all' || template.kind === templateKind))
+    .sort((a, b) => Number(Boolean(b.recommended)) - Number(Boolean(a.recommended))),
+  [templateCategory, templateKind])
   const refreshProjects=useCallback(()=>listPosterProjects().then(setProjects),[])
   const commit=useCallback((updater:(current:PosterDocument)=>PosterDocument,record=true)=>{
     setDocument((current)=>{const next={...updater(current),updatedAt:Date.now()};if(record){setHistory((items)=>[...items.slice(-59),current]);setFuture([])}return next})
@@ -97,11 +104,24 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
   },[document,selected,undo,redo,addElement,removeElement,updateElement])
 
   const requestImage=(id:string|null=null)=>{uploadTarget.current=id;imageInputRef.current?.click()}
-  const addImageFile=async(file:File,targetId:string|null=uploadTarget.current)=>{
-    const src=await readPosterImage(file)
-    if(targetId){updateElement(targetId,{src,zoom:1,offsetX:0,offsetY:0} as Partial<PosterElement>);setSelectedId(targetId)}
-    else addElement({...nowBase('image',file.name,document.size.width/2,document.size.height/2,Math.min(420,document.size.width*.58),Math.min(320,document.size.height*.4)),src,isSlot:false,mask:'round',zoom:1,offsetX:0,offsetY:0,flipX:false,flipY:false,brightness:0,contrast:0,saturation:0,filter:'none'} as PosterImageElement)
-    uploadTarget.current=null
+  const addImageFile = async (file: File, targetId: string | null = uploadTarget.current) => {
+    uploadTarget.current = null
+    try {
+      const src = await readPosterImage(file)
+      if (targetId) {
+        updateElement(targetId, {src, zoom:1, offsetX:0, offsetY:0})
+        setSelectedId(targetId)
+      } else {
+        const {width, height} = document.size
+        addElement({
+          ...nowBase('image',file.name,width/2,height/2,Math.min(420,width*.58),Math.min(320,height*.4)),
+          kind:'image',src,isSlot:false,mask:'round',zoom:1,offsetX:0,offsetY:0,
+          flipX:false,flipY:false,brightness:0,contrast:0,saturation:0,filter:'none',
+        })
+      }
+    } catch {
+      setStatus('사진을 불러오지 못했어요')
+    }
   }
   const addSlot=()=>addElement({...nowBase('image','이미지 영역',document.size.width/2,document.size.height/2,360,260),src:'',isSlot:true,mask:'round',zoom:1,offsetX:0,offsetY:0,flipX:false,flipY:false,brightness:0,contrast:0,saturation:0,filter:'none'} as PosterImageElement)
   const addSticker=(value:string,type:'emoji'|'image'='emoji')=>addElement({...nowBase('sticker',type==='emoji'?'이모티콘':'사용자 스티커',document.size.width/2,document.size.height/2,100,100),stickerType:type,value} as PosterElement)
@@ -133,8 +153,14 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
   const newProject=()=>{if(window.confirm('현재 작업은 자동 저장됩니다. 새 포스터를 시작할까요?')){setDocument(createBlankPoster());setSelectedId(null);setHistory([]);setFuture([])}}
   const capture=async(format:'png'|'jpeg'='png',pixelRatio?:number)=>{
     await window.document.fonts?.ready;setExporting(true);await new Promise((resolve)=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))
-    const ratio=pixelRatio??document.size.outputWidth/document.size.width
-    const url=canvasRef.current?.toDataURL(format==='jpeg'?'image/jpeg':'image/png',ratio,.95)||'';setExporting(false);return url
+    const {width, outputWidth, outputHeight} = document.size
+    const ratio = pixelRatio ?? outputWidth / width
+    const output = pixelRatio === undefined ? {width:outputWidth, height:outputHeight} : undefined
+    try {
+      return canvasRef.current?.toDataURL(format === 'jpeg' ? 'image/jpeg' : 'image/png', ratio, .95, output) || ''
+    } finally {
+      setExporting(false)
+    }
   }
   const exportImage=async(format=downloadFormat)=>{
     const raster=format==='jpeg'?'jpeg':'png';const url=await capture(raster)
@@ -151,7 +177,32 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
   const printPoster=async()=>{const url=await capture('png');const popup=window.open('','_blank','width=900,height=900');if(!popup){setStatus('인쇄 팝업을 허용해 주세요');return}popup.document.write(`<!doctype html><html><head><title>${document.name}</title><style>@page{margin:0}body{margin:0;display:grid;place-items:center}img{max-width:100%;max-height:100vh}</style></head><body><img src="${url}" onload="setTimeout(()=>print(),300)"></body></html>`);popup.document.close()}
 
   const renderTab=()=>{
-    if(tab==='templates')return <><PanelTitle title="템플릿" text="카테고리를 고르고 디자인을 바로 적용하세요."/><button className="poster-button primary poster-template-upload" onClick={()=>templateInputRef.current?.click()}><Upload size={15}/> 내 템플릿 업로드</button><label className="poster-label">카테고리</label><select className="poster-select" value={templateCategory} onChange={(event)=>setTemplateCategory(event.target.value)}>{posterCategories.map((category)=><option key={category} value={category}>{category}{category==='전체'?` · ${posterTemplates.length}종`:` · ${posterTemplates.filter((template)=>template.category===category).length}종`}</option>)}</select><div className="poster-template-categories">{posterCategories.map((category)=><button key={category} className={templateCategory===category?'active':''} onClick={()=>setTemplateCategory(category)}>{category}</button>)}</div><div className="poster-template-result"><strong>{templateCategory}</strong><span>{visibleTemplates.length}개 디자인</span></div><div className="poster-tab-grid">{visibleTemplates.map((template)=>{const photo=template.elements.find((item)=>item.kind==='image');return <button key={template.id} className="poster-mini-template" style={{background:template.background.color}} onClick={()=>applyTemplate(template.id)}>{photo&&photo.kind==='image'&&photo.src&&<img src={photo.src} alt="" loading="lazy"/>}<span className="poster-mini-shade"/><strong>{template.name}</strong><em>{template.size.width>template.size.height?'가로형':'세로형'}</em></button>})}</div></>
+    if (tab === 'templates') return <>
+      <PanelTitle title="템플릿" />
+      <button type="button" className="poster-button poster-template-upload" onClick={() => templateInputRef.current?.click()}>
+        <Upload size={15} /> 내 템플릿 이미지 업로드
+      </button>
+      <div className="poster-template-kinds" role="group" aria-label="템플릿 유형">
+        {([
+          ['all', '전체'], ['poster', '일반 포스터'], ['frame', '액자·콜라주'],
+        ] as const).map(([kind, label]) => (
+          <button key={kind} type="button" aria-pressed={templateKind === kind} onClick={() => setTemplateKind(kind)}>{label}</button>
+        ))}
+      </div>
+      <label className="poster-label" htmlFor="poster-template-category">카테고리</label>
+      <select id="poster-template-category" className="poster-select" value={templateCategory} onChange={(event) => setTemplateCategory(event.target.value)}>
+        {posterCategories.map((category) => <option key={category} value={category}>{category}</option>)}
+      </select>
+      <div className="poster-design-results">
+        {visibleTemplates.length}개 디자인
+        {templateKind === 'frame' && <p>사진을 원하는 칸에 끌어 놓거나 클릭해서 선택하세요.</p>}
+      </div>
+      <div className="poster-tab-grid">
+        {visibleTemplates.map((template) => (
+          <PosterTemplateCard key={template.id} template={template} active={document.templateId === template.id} onApply={() => applyTemplate(template.id)} />
+        ))}
+      </div>
+    </>
     if(tab==='photos')return <><PanelTitle title="사진과 로고" text="사진을 추가하거나 빈 이미지 영역을 만드세요."/><div className="poster-grid-2"><button className="poster-button" onClick={()=>requestImage()}><ImagePlus size={16}/> 사진 추가</button><button className="poster-button" onClick={addSlot}><Square size={16}/> 영역 추가</button></div><button className="poster-button poster-section" onClick={()=>backgroundInputRef.current?.click()}><Wallpaper size={16}/> 내 포스터를 배경으로</button><label className="poster-label">QR코드</label><input className="poster-input" value={qrValue} onChange={(event)=>setQrValue(event.target.value)} placeholder="https://..."/><button className="poster-button poster-section" onClick={()=>void addQr()}><QrCode size={16}/> 실제 QR코드 삽입</button></>
     if(tab==='text')return <><PanelTitle title="텍스트" text="용도에 맞는 텍스트 상자를 추가하세요."/><div className="poster-grid-2"><button className="poster-button" onClick={()=>addElement(newText(document,'title'))}>제목</button><button className="poster-button" onClick={()=>addElement(newText(document,'subtitle'))}>부제목</button><button className="poster-button" onClick={()=>addElement(newText(document,'body'))}>본문</button><button className="poster-button" onClick={()=>addElement(newText(document,'sale'))}>50% OFF</button></div><label className="poster-label">스타일 문구</label>{['GRAND OPEN','SPECIAL EVENT','NEW MENU','HAPPY BIRTHDAY','모집 안내','특별 할인'].map((value)=><button key={value} className="poster-button poster-section" onClick={()=>{const element=newText(document,'title');element.text=value;addElement(element)}}>{value}</button>)}</>
     if(tab==='stickers')return <><PanelTitle title="스티커" text="이모티콘 또는 투명 PNG를 추가하세요."/><div className="poster-emoji-grid">{posterEmojis.map((emoji)=><button key={emoji} onClick={()=>addSticker(emoji)}>{emoji}</button>)}</div><button className="poster-button poster-section" onClick={()=>stickerInputRef.current?.click()}><Upload size={16}/> 내 스티커 업로드</button></>
@@ -186,8 +237,25 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
     <div className="poster-editor-body">
       <nav className="poster-tools">{tabs.map((item)=><button key={item.id} className={tab===item.id?'active':''} onClick={()=>{setTab(item.id);setMobilePanel(true)}}><item.icon size={19}/><span>{item.label}</span></button>)}</nav>
       {mobilePanel&&<aside className="poster-panel"><button className="poster-button" style={{display:window.innerWidth<821?'flex':'none',marginBottom:12}} onClick={()=>setMobilePanel(false)}>패널 닫기</button>{renderTab()}</aside>}
-      <main ref={workspaceRef} className="poster-workspace" onDragOver={(event)=>{event.preventDefault();event.dataTransfer.dropEffect='copy'}} onDrop={(event)=>{event.preventDefault();const file=[...event.dataTransfer.files].find((item)=>item.type.startsWith('image/'));if(file)void addImageFile(file,selected?.kind==='image'?selected.id:null)}}>
-        <PosterCanvas ref={canvasRef} document={document} scale={actualScale} selectedId={selectedId} exporting={exporting} showSafeArea={showSafeArea} onSelect={setSelectedId} onChange={updateElement} onRequestImage={requestImage}/>
+      <main ref={workspaceRef} className="poster-workspace"
+        onDragOver={(event) => {
+          if (!event.dataTransfer.types.includes('Files')) return
+          event.preventDefault()
+          event.dataTransfer.dropEffect = 'copy'
+          setDropTargetId(canvasRef.current?.getPhotoSlotAt(event.clientX, event.clientY) ?? null)
+        }}
+        onDragLeave={(event) => {
+          if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setDropTargetId(null)
+        }}
+        onDrop={(event) => {
+          event.preventDefault()
+          setDropTargetId(null)
+          const file = Array.from(event.dataTransfer.files).find((item) => item.type.startsWith('image/'))
+          const targetId = canvasRef.current?.getPhotoSlotAt(event.clientX, event.clientY) ?? null
+          if (file) void addImageFile(file, targetId)
+        }}
+      >
+        <PosterCanvas ref={canvasRef} document={document} scale={actualScale} selectedId={selectedId} exporting={exporting} dropTargetId={dropTargetId} showSafeArea={showSafeArea} onSelect={setSelectedId} onChange={updateElement} onRequestImage={requestImage}/>
         <div className="poster-zoom"><button className="poster-icon-button" onClick={()=>setViewZoom((v)=>Math.max(.4,v-.1))}><ZoomOut size={16}/></button><span>{Math.round(viewZoom*100)}%</span><button className="poster-icon-button" onClick={()=>setViewZoom((v)=>Math.min(2.5,v+.1))}><ZoomIn size={16}/></button><button className="poster-icon-button" onClick={()=>setViewZoom(1)}><Maximize2 size={15}/></button></div>
       </main>
       <aside className="poster-inspector">{renderInspector()}</aside>

@@ -1,0 +1,25 @@
+import { describe, expect, it } from 'vitest'
+import { findPhotoSlotAt } from './photoSlots'
+import { posterTemplates } from './templates'
+import type { PosterImageElement } from './types'
+
+const scrapbook = posterTemplates.find((template) => template.name === '사진 일기 · 4컷')!
+const photos = scrapbook.elements.filter((element) => element.kind === 'image')
+const [first, second] = photos
+
+describe('poster photo slots', () => {
+  it('picks the frame under the pointer in a multi-photo template', () => {
+    expect(photos).toHaveLength(4)
+    expect(findPhotoSlotAt(scrapbook.elements, first.x, first.y)).toBe(first.id)
+    expect(findPhotoSlotAt(scrapbook.elements, second.x, second.y)).toBe(second.id)
+    expect(findPhotoSlotAt(scrapbook.elements, 0, 0)).toBeNull()
+  })
+
+  it('uses rotated slot bounds and skips hidden, locked and standalone images', () => {
+    const rotated: PosterImageElement = { ...first, x:100, y:100, width:100, height:30, rotation:90 }
+    expect(findPhotoSlotAt([rotated], 100, 140)).toBe(rotated.id)
+    expect(findPhotoSlotAt([rotated], 140, 100)).toBeNull()
+    expect(findPhotoSlotAt([rotated, { ...rotated, id:'hidden', visible:false }], 100, 100)).toBe(rotated.id)
+    expect(findPhotoSlotAt([{ ...rotated, locked:true }, { ...rotated, isSlot:false }], 100, 100)).toBeNull()
+  })
+})
