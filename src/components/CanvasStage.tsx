@@ -21,6 +21,7 @@ interface Props {
   onSelect: (selection: SelectedElement) => void
   onEditText?: (item: TextElement, node: Konva.Node) => void
   onEditCaption?: (field: CaptionField, node: Konva.Node) => void
+  tapToReplacePhoto: boolean
   onPhotoChange: (index: number, photo: SlotPhoto) => void
   onTextChange: (id: string, patch: Partial<TextElement>) => void
   onTextDelete: (id: string) => void
@@ -70,12 +71,13 @@ function SlotSurface({rect, radius, ...props}: {rect: LayoutRect; radius: number
   }} />
 }
 
-function PhotoNode({ photo, rect, radius, selected, onSelect, onChange }: {
+function PhotoNode({ photo, rect, radius, selected, onSelect, onTap, onChange }: {
   photo: SlotPhoto
   rect: LayoutRect
   radius: number
   selected: boolean
   onSelect: () => void
+  onTap?: () => void
   onChange: (photo: SlotPhoto) => void
 }) {
   const [image] = useImage(photo.src)
@@ -131,7 +133,7 @@ function PhotoNode({ photo, rect, radius, selected, onSelect, onChange }: {
         contrast={photo.contrast}
         saturation={photo.saturation / 100}
         onClick={onSelect}
-        onTap={onSelect}
+        onTap={onTap ?? onSelect}
         onDragStart={onSelect}
         onDragMove={(event) => {
           const point = clampPosition(event.target.x(), event.target.y())
@@ -244,7 +246,7 @@ function StickerNode({ sticker, selected, onSelect, onChange, onDelete }: {
 }
 
 export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage({
-  document, viewScale, selected, showSafeArea, exporting, onSelect, onEditText, onEditCaption, onPhotoChange, onTextChange,
+  document, viewScale, selected, showSafeArea, exporting, onSelect, onEditText, onEditCaption, tapToReplacePhoto, onPhotoChange, onTextChange,
   onTextDelete, onStickerChange, onStickerDelete, onRequestUpload, onFilesDropped,
 }, ref) {
   const stageRef = useRef<Konva.Stage>(null)
@@ -372,7 +374,11 @@ export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage(
                 onTap={photo || exporting ? undefined : () => onRequestUpload(index)}
                 onMouseEnter={photo || exporting ? undefined : () => stageRef.current?.container().style.setProperty('cursor', 'pointer')}
                 onMouseLeave={photo || exporting ? undefined : () => stageRef.current?.container().style.removeProperty('cursor')} />
-              {photo ? <PhotoNode photo={photo} rect={rect} radius={document.frame.radius} selected={selected?.type === 'slot' && selected.id === String(index)} onSelect={() => onSelect({ type: 'slot', id: String(index) })} onChange={(next) => onPhotoChange(index, next)}/>
+              {photo ? <PhotoNode photo={photo} rect={rect} radius={document.frame.radius}
+                selected={selected?.type === 'slot' && selected.id === String(index)}
+                onSelect={() => onSelect({ type: 'slot', id: String(index) })}
+                onTap={tapToReplacePhoto && !exporting ? () => onRequestUpload(index) : undefined}
+                onChange={(next) => onPhotoChange(index, next)}/>
                 : !exporting && <>
                   <Text x={rect.x} y={rect.y + rect.height / 2 - 28} width={rect.width} text="＋" align="center" fontSize={28} fill="#94a3b8" listening={false}/>
                   <Text x={rect.x} y={rect.y + rect.height / 2 + 8} width={rect.width} text="사진 넣기" align="center" fontSize={13} fill="#64748b" listening={false}/>

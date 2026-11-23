@@ -1,0 +1,23 @@
+{
+  "id": "./",
+  "name": "바라봄 메이커",
+  "short_name": "바라봄",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f1f5f9",
+  "theme_color": "#111827",
+  "icons": [
+    {
+      "src": "barabom-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "barabom-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

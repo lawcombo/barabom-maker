@@ -68,12 +68,3 @@ export function createPhoto(src: string, name: string): SlotPhoto {
     saturation: 0, filter: 'none', fit: 'cover',
   }
 }
-
-export function readImageFile(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result))
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-}

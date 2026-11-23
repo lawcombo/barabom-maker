@@ -1,13 +1,6 @@
 import type { PosterElement } from './types'
 
-export function readPosterImage(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result))
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-}
+export { readImageFile as readPosterImage } from '../../lib/localImage'
 
 export function clonePosterElement(element: PosterElement, dx = 20, dy = 20): PosterElement {
   return { ...element, id:crypto.randomUUID(), name:`${element.name} 복사본`, x:element.x + dx, y:element.y + dy }

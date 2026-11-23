@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { StudioHeaderActions } from '../../components/StudioHeaderActions'
 import { StudioInspector, studioPhoneLayout, useCanvasTextEdit } from '../../components/StudioMobileControls'
+import { isPhotoFile, readPhotoFile } from '../../lib/localImage'
 import { PHOTO_ZOOM } from '../../lib/photoZoom'
 import { PosterCanvas } from './PosterCanvas'
 import { PosterTemplateCard } from './PosterTemplateCard'
@@ -123,7 +124,7 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
     const update=()=>{
       const mobile = window.matchMedia(studioPhoneLayout).matches
       setFitScale(Math.max(mobile ? .08 : .16, Math.min(1, (workspace.clientWidth - (mobile ? 28 : 110)) / document.size.width,
-        (workspace.clientHeight - (mobile ? 66 : 110)) / document.size.height)))
+        (workspace.clientHeight - (mobile ? 52 : 110)) / document.size.height)))
     }
     const observer=new ResizeObserver(update);observer.observe(workspace);update();return()=>observer.disconnect()
   },[document.size.width,document.size.height])
@@ -145,7 +146,7 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
   const addImageFile = async (file: File, targetId: string | null = uploadTarget.current) => {
     uploadTarget.current = null
     try {
-      const src = await readPosterImage(file)
+      const src = await readPhotoFile(file)
       if (targetId) {
         updateElement(targetId, {src, zoom:1, offsetX:0, offsetY:0})
         setSelectedId(targetId)
@@ -284,7 +285,15 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
   const actualScale=fitScale*viewZoom
   const inspectorLabel = selected?.kind === 'text' ? '글자 스타일' : selected?.kind === 'image' ? '사진 조정' : selected ? '요소 설정' : '포스터 설정'
   return <div className="poster-shell studio-editor-shell">
-    <input ref={imageInputRef} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={(event)=>{const file=event.target.files?.[0];if(file){setMobilePanel(false);void addImageFile(file)}event.target.value=''}}/>
+    <input ref={imageInputRef} hidden type="file" accept="image/*" onChange={async (event) => {
+      const input = event.currentTarget
+      const files = input.files
+      const file = files?.[0]
+      if (!file) return
+      setMobilePanel(false)
+      await addImageFile(file)
+      if (input.files === files) input.value = ''
+    }}/>
     <input ref={backgroundInputRef} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={async(event)=>{const file=event.target.files?.[0];if(file){setMobilePanel(false);const src=await readPosterImage(file);commit((d)=>({...d,background:{...d.background,type:'image',imageSrc:src}}))}event.target.value=''}}/>
     <input ref={stickerInputRef} hidden type="file" accept="image/png,image/webp" onChange={async(event)=>{const file=event.target.files?.[0];if(file)addSticker(await readPosterImage(file),'image');event.target.value=''}}/>
     <input ref={projectInputRef} hidden type="file" accept=".json,.barabom-poster.json" onChange={async(event)=>{const file=event.target.files?.[0];if(file){setMobilePanel(false);try{openProject(await importPosterProject(file),false)}catch{setStatus('올바른 포스터 파일이 아니에요')}}event.target.value=''}}/>
@@ -306,7 +315,7 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
         <button className="poster-button poster-mobile-close" onClick={()=>setMobilePanel(false)}>패널 닫기</button>
         {renderTab()}
       </aside>
-      <main ref={workspaceRef} className="poster-workspace studio-workspace"
+      <main ref={workspaceRef} className="poster-workspace studio-workspace" data-zoomed={viewZoom > 1 ? '' : undefined}
         onClick={() => { setMobilePanel(false); setInspectorOpen(false) }}
         onDragOver={(event) => {
           if (!event.dataTransfer.types.includes('Files')) return
@@ -320,13 +329,14 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
         onDrop={(event) => {
           event.preventDefault()
           setDropTargetId(null)
-          const file = Array.from(event.dataTransfer.files).find((item) => item.type.startsWith('image/'))
+          const file = Array.from(event.dataTransfer.files).find(isPhotoFile)
           const targetId = canvasRef.current?.getPhotoSlotAt(event.clientX, event.clientY) ?? null
           if (file) void addImageFile(file, targetId)
         }}
       >
         <PosterCanvas ref={canvasRef} document={document} scale={actualScale} selectedId={selectedId} exporting={exporting}
           dropTargetId={dropTargetId} showSafeArea={showSafeArea} onSelect={setSelectedId}
+          tapToReplacePhoto={canvasTextEdit.enabled}
           onEditText={canvasTextEdit.enabled ? (item, node) => {
             setInspectorOpen(false)
             setMobilePanel(false)

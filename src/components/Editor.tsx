@@ -12,7 +12,8 @@ import { StudioHeaderActions } from './StudioHeaderActions'
 import { StudioInspector, studioPhoneLayout, useCanvasTextEdit } from './StudioMobileControls'
 import { ARTBOARD, getDesignedLayout, layoutLabel } from '../data/layouts'
 import { templateById, templates } from '../data/templates'
-import { applyDesignTemplate, createDocument, createPhoto, readImageFile } from '../lib/document'
+import { applyDesignTemplate, createDocument, createPhoto } from '../lib/document'
+import { isPhotoFile, readImageFile, readPhotoFile } from '../lib/localImage'
 import { deleteProject, exportProjectFile, importProjectFile, listProjects, loadLastProject, loadProject, saveProject } from '../lib/projects'
 import type { CaptionField, CaptionStyle, EditorDocument, Orientation, SelectedElement, SlotPhoto, StickerElement, TextElement, ToolTab } from '../types'
 
@@ -140,7 +141,7 @@ export function Editor({ onExit }: { onExit: () => void }) {
       const { width, height } = ARTBOARD[document.orientation]
       const mobile = window.matchMedia(studioPhoneLayout).matches
       const availableW = Math.max(mobile ? 180 : 260, host.clientWidth - (mobile ? 24 : 80))
-      const availableH = Math.max(mobile ? 120 : 300, host.clientHeight - (mobile ? 66 : 80))
+      const availableH = Math.max(mobile ? 105 : 300, host.clientHeight - (mobile ? 52 : 80))
       setFitScale(Math.min(availableW / width, availableH / height, 1))
     }
     updateFit()
@@ -163,9 +164,10 @@ export function Editor({ onExit }: { onExit: () => void }) {
   }), [commit])
 
   const addFiles = useCallback(async (files: File[], startIndex?: number) => {
-    const valid = files.filter((file) => ['image/jpeg','image/png','image/webp'].includes(file.type))
-    if (!valid.length) { setStatus('JPG, PNG, WEBP 이미지만 사용할 수 있어요'); return }
-    const created = await Promise.all(valid.map(async (file) => createPhoto(await readImageFile(file), file.name)))
+    const results = await Promise.allSettled(files.filter(isPhotoFile).map(async (file) =>
+      createPhoto(await readPhotoFile(file), file.name)))
+    const created = results.flatMap((result) => result.status === 'fulfilled' ? [result.value] : [])
+    if (!created.length) { setStatus('사진을 불러오지 못했어요'); return }
     commit((current) => {
       const photos = [...current.photos]
       let pointer = startIndex ?? photos.slice(0, current.cutCount).findIndex((item) => !item)
@@ -184,7 +186,11 @@ export function Editor({ onExit }: { onExit: () => void }) {
     setStatus(`${created.length}장의 사진을 배치했어요`)
   }, [commit])
 
-  const requestUpload = (index?: number) => { uploadTarget.current = index ?? null; fileInputRef.current?.click() }
+  const requestUpload = (index?: number) => {
+    uploadTarget.current = index ?? null
+    if (index !== undefined) setSelected({ type:'slot', id:String(index) })
+    fileInputRef.current?.click()
+  }
 
   const deleteSelected = useCallback(() => {
     if (!selected) return
@@ -414,7 +420,14 @@ export function Editor({ onExit }: { onExit: () => void }) {
   const inspectorLabel = selectedText || selectedCaption ? '글자 스타일' : selectedPhoto ? '사진 조정' : selectedSticker ? '스티커 설정' : '프레임 설정'
 
   return <div className="studio-editor-shell flex h-screen min-h-[640px] flex-col overflow-hidden bg-slate-100 text-slate-900">
-    <input ref={fileInputRef} hidden type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>{ if(e.target.files?.length){setMobilePanel(false);void addFiles(Array.from(e.target.files),uploadTarget.current??undefined)} e.target.value='' }}/>
+    <input ref={fileInputRef} hidden type="file" accept="image/*" multiple onChange={async (event) => {
+      const input = event.currentTarget
+      const files = input.files
+      if (!files?.length) return
+      setMobilePanel(false)
+      await addFiles(Array.from(files), uploadTarget.current ?? undefined)
+      if (input.files === files) input.value = ''
+    }}/>
     <input ref={projectInputRef} hidden type="file" accept=".json,.photostudio.json" onChange={async e=>{const file=e.target.files?.[0];if(file){setMobilePanel(false);try{openProject(await importProjectFile(file),false)}catch{setStatus('올바른 프로젝트 파일이 아니에요')}}e.target.value=''}}/>
     <input ref={stickerInputRef} hidden type="file" accept="image/png,image/webp" onChange={async e=>{const file=e.target.files?.[0];if(file)addSticker(await readImageFile(file),'image');e.target.value=''}}/>
     <header className="editor-header studio-editor-header">
@@ -431,8 +444,10 @@ export function Editor({ onExit }: { onExit: () => void }) {
         setMobilePanel((open) => tab !== item.id || !open)
       }}><item.icon size={19}/><span>{item.label}</span></button>)}</nav>
       <aside id="fourcut-tool-panel" className={`left-panel studio-tool-panel ${mobilePanel?'mobile-open':''}`}><button className="mobile-close" onClick={()=>setMobilePanel(false)}>닫기</button>{renderTab()}</aside>
-      <main ref={workspaceRef} className="workspace studio-workspace" onClick={()=>{setMobilePanel(false);setInspectorOpen(false)}}>
+      <main ref={workspaceRef} className="workspace studio-workspace" data-zoomed={viewZoom > 1 ? '' : undefined}
+        onClick={()=>{setMobilePanel(false);setInspectorOpen(false)}}>
         <div className="canvas-center"><CanvasStage ref={canvasRef} document={document} viewScale={actualScale} selected={isExporting ? null : selected} exporting={isExporting} showSafeArea={!isExporting && showSafeArea} onSelect={setSelected}
+          tapToReplacePhoto={canvasTextEdit.enabled}
           onEditText={canvasTextEdit.enabled ? (item, node) => {
             setInspectorOpen(false)
             setMobilePanel(false)

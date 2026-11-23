@@ -28,6 +28,7 @@ interface Props {
   showSafeArea: boolean
   onSelect: (id: string | null) => void
   onEditText?: (element: PosterTextElement, node: Konva.Node) => void
+  tapToReplacePhoto: boolean
   onChange: (id: string, patch: Partial<PosterElement>) => void
   onDelete: (id: string) => void
   onRequestImage: (id: string) => void
@@ -138,12 +139,13 @@ function ImageContent({ element, selected, exporting, onSelect, onChange }: {
   </Group>
 }
 
-function ElementNode({ element, selected, exporting, onSelect, onEditText, onChange, onRequestImage }: {
+function ElementNode({ element, selected, exporting, onSelect, onEditText, tapToReplacePhoto, onChange, onRequestImage }: {
   element:PosterElement
   selected:boolean
   exporting:boolean
   onSelect:()=>void
   onEditText?: Props['onEditText']
+  tapToReplacePhoto: boolean
   onChange:(patch:Partial<PosterElement>)=>void
   onRequestImage:()=>void
 }) {
@@ -163,10 +165,11 @@ function ElementNode({ element, selected, exporting, onSelect, onEditText, onCha
     node.scaleX(1);node.scaleY(1)
     onChange({x:node.x(),y:node.y(),rotation:node.rotation(),width:Math.max(24,element.width*scaleX),height:Math.max(24,element.height*scaleY)})
   }
-  const selectElement = (event: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+  const selectElement = (event: Konva.KonvaEventObject<Event>, tapped: boolean) => {
     event.cancelBubble = true
     onSelect()
-    if (element.kind === 'image' && !element.src) onRequestImage()
+    if (!exporting && !element.locked && element.kind === 'image' &&
+      (!element.src || (tapped && tapToReplacePhoto && element.isSlot))) onRequestImage()
     if (!exporting && !element.locked && element.kind === 'text' && onEditText) {
       const textNode = nodeRef.current?.findOne('Text')
       if (textNode) onEditText(element, textNode)
@@ -181,8 +184,8 @@ function ElementNode({ element, selected, exporting, onSelect, onEditText, onCha
       rotation={element.rotation}
       opacity={element.opacity}
       draggable={!element.locked && !(element.kind === 'image' && element.src && (element.isSlot || selected))}
-      onClick={selectElement}
-      onTap={selectElement}
+      onClick={(event) => selectElement(event, false)}
+      onTap={(event) => selectElement(event, true)}
       onDragStart={onSelect}
       onDragEnd={(event)=>onChange({x:event.currentTarget.x(),y:event.currentTarget.y()})}
       onTransformEnd={finishTransform}
@@ -218,7 +221,7 @@ function ShapeContent({element}:{element:Extract<PosterElement,{kind:'shape'}>})
   return <Rect x={-w/2} y={-h/2} width={w} height={h} fill={element.fill} stroke={element.stroke} strokeWidth={element.strokeWidth} cornerRadius={element.radius}/>
 }
 
-export const PosterCanvas=forwardRef<PosterCanvasHandle,Props>(function PosterCanvas({document,scale,selectedId,exporting,dropTargetId,showSafeArea,onSelect,onEditText,onChange,onDelete,onRequestImage},ref){
+export const PosterCanvas=forwardRef<PosterCanvasHandle,Props>(function PosterCanvas({document,scale,selectedId,exporting,dropTargetId,showSafeArea,onSelect,onEditText,tapToReplacePhoto,onChange,onDelete,onRequestImage},ref){
   const stageRef=useRef<Konva.Stage>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const deleteButtonRef = useRef<HTMLButtonElement>(null)
@@ -290,7 +293,7 @@ export const PosterCanvas=forwardRef<PosterCanvasHandle,Props>(function PosterCa
       <Layer>
         <Background document={document}/>
         {document.elements.map((element)=><ElementNode key={element.id} element={element} selected={!exporting&&selectedId===element.id}
-          exporting={exporting} onSelect={()=>onSelect(element.id)} onEditText={onEditText}
+          exporting={exporting} onSelect={()=>onSelect(element.id)} onEditText={onEditText} tapToReplacePhoto={tapToReplacePhoto}
           onChange={(patch)=>onChange(element.id,patch)} onRequestImage={()=>onRequestImage(element.id)}/>) }
         {dropTarget?.kind === 'image' && !exporting && <Shape
           x={dropTarget.x} y={dropTarget.y} rotation={dropTarget.rotation}
