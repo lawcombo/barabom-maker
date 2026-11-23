@@ -15,6 +15,7 @@ import {
   loadLastPosterProject, savePosterProject,
 } from './storage'
 import type { PosterCanvasHandle, PosterDocument, PosterElement, PosterImageElement, PosterPreset, PosterShapeElement, PosterTab, PosterTextElement } from './types'
+import './poster.css'
 
 const tabs: Array<{id:PosterTab;label:string;icon:typeof LayoutTemplate}> = [
   {id:'templates',label:'템플릿',icon:LayoutTemplate},{id:'photos',label:'사진',icon:Images},{id:'text',label:'텍스트',icon:Type},
