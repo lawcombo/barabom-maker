@@ -36,11 +36,9 @@ export async function deletePosterProject(id: string) {
   if (localStorage.getItem(LAST_POSTER_KEY) === id) localStorage.removeItem(LAST_POSTER_KEY)
 }
 
-export async function duplicatePosterProject(document: PosterDocument) {
+export function copyPosterProject(document: PosterDocument) {
   const now = Date.now()
-  const copy = { ...document, id:crypto.randomUUID(), name:`${document.name} 복사본`, createdAt:now, updatedAt:now }
-  await savePosterProject(copy)
-  return copy
+  return { ...document, id:crypto.randomUUID(), name:`${document.name} 복사본`, createdAt:now, updatedAt:now }
 }
 
 export function exportPosterProject(document: PosterDocument) {
@@ -57,7 +55,5 @@ export async function importPosterProject(file: File) {
   const parsed = JSON.parse(await file.text()) as PosterDocument
   if (parsed.version !== 'poster-v1' || !Array.isArray(parsed.elements)) throw new Error('지원하지 않는 포스터 프로젝트입니다.')
   const now = Date.now()
-  const imported = { ...parsed, id:crypto.randomUUID(), name:`${parsed.name} 가져옴`, createdAt:now, updatedAt:now }
-  await savePosterProject(imported)
-  return imported
+  return { ...parsed, id:crypto.randomUUID(), name:`${parsed.name} 가져옴`, createdAt:now, updatedAt:now }
 }

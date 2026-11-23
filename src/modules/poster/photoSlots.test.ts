@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findPhotoSlotAt } from './photoSlots'
+import { clampSlotPhotoOffset, findPhotoSlotAt } from './photoSlots'
 import { posterTemplates, templateById } from './templates'
 import type { PosterImageElement } from './types'
 
@@ -32,5 +32,17 @@ describe('poster photo slots', () => {
         expect(findPhotoSlotAt(template.elements, slot.x, slot.y)).toBe(slot.id)
       }
     }
+  })
+
+  it('limits the crop to photo coverage, including after zooming back out', () => {
+    const slot = { width: 150, height: 100, mask: 'round' } as const
+    expect(clampSlotPhotoOffset(slot, 300, 150, 130, -60)).toEqual({ offsetX: 75, offsetY: -25 })
+    expect(clampSlotPhotoOffset(slot, 200, 100, -75, 25)).toEqual({ offsetX: -25, offsetY: 0 })
+    expect(clampSlotPhotoOffset(slot, 300, 150, -20, 14)).toEqual({ offsetX: -20, offsetY: 14 })
+  })
+
+  it('uses the visible diameter to limit panning in circular slots', () => {
+    const slot = { width: 150, height: 100, mask: 'circle' } as const
+    expect(clampSlotPhotoOffset(slot, 200, 100, 100, 20)).toEqual({ offsetX: 50, offsetY: 0 })
   })
 })

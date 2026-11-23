@@ -5,7 +5,7 @@ import { Arrow, Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Te
 import useImage from 'use-image'
 import { PHOTO_ZOOM, zoomFromWheel } from '../../lib/photoZoom'
 import type { PosterCanvasHandle, PosterDocument, PosterElement, PosterImageElement } from './types'
-import { findPhotoSlotAt } from './photoSlots'
+import { clampSlotPhotoOffset, findPhotoSlotAt } from './photoSlots'
 import './poster-canvas.css'
 
 const emptyPhotoSlotName = 'empty-photo-slot'
@@ -38,10 +38,11 @@ function Background({ document }: { document: PosterDocument }) {
   return <Rect width={width} height={height} fill={document.background.color} opacity={document.background.opacity} listening={false}/>
 }
 
-function ImageContent({ element, selected, exporting, onChange }: {
+function ImageContent({ element, selected, exporting, onSelect, onChange }: {
   element: PosterImageElement
   selected: boolean
   exporting: boolean
+  onSelect: () => void
   onChange: (patch: Partial<PosterElement>) => void
 }) {
   const [image] = useImage(element.src)
@@ -79,10 +80,18 @@ function ImageContent({ element, selected, exporting, onChange }: {
     </>
   }
   const cover=Math.max(element.width/image.width, element.height/image.height)
-  const drawWidth=image.width*cover*element.zoom
-  const drawHeight=image.height*cover*element.zoom
-  const baseX=-drawWidth/2+element.offsetX
-  const baseY=-drawHeight/2+element.offsetY
+  const zoom = element.isSlot ? Math.max(PHOTO_ZOOM.coverMin, element.zoom) : element.zoom
+  const drawWidth = image.width * cover * zoom
+  const drawHeight = image.height * cover * zoom
+  const constrainOffset = (x: number, y: number, width = drawWidth, height = drawHeight) => (
+    element.isSlot ? clampSlotPhotoOffset(element, width, height, x, y) : { offsetX: x, offsetY: y }
+  )
+  const { offsetX, offsetY } = constrainOffset(element.offsetX, element.offsetY)
+  const positionWithinSlot = (node: Konva.Node) => {
+    const offset = constrainOffset(node.x() + drawWidth / 2, node.y() + drawHeight / 2)
+    node.position({ x: offset.offsetX - drawWidth / 2, y: offset.offsetY - drawHeight / 2 })
+    return offset
+  }
   return <Group clipFunc={clip} onWheel={(event) => {
     const wheel = event.evt
     if (exporting || element.locked || wheel.deltaY === 0) return
@@ -90,32 +99,39 @@ function ImageContent({ element, selected, exporting, onChange }: {
     if (!point) return
     wheel.preventDefault()
 
-    const minZoom = Math.min(element.zoom, element.isSlot ? PHOTO_ZOOM.coverMin : PHOTO_ZOOM.containMin)
-    const zoom = Math.min(PHOTO_ZOOM.max, Math.max(minZoom, zoomFromWheel(element.zoom, wheel.deltaY)))
-    if (zoom === element.zoom) return
+    const minZoom = element.isSlot ? PHOTO_ZOOM.coverMin : Math.min(zoom, PHOTO_ZOOM.containMin)
+    const nextZoom = Math.min(PHOTO_ZOOM.max, Math.max(minZoom, zoomFromWheel(zoom, wheel.deltaY)))
+    if (nextZoom === zoom) return
 
-    const ratio = zoom / element.zoom
+    const ratio = nextZoom / zoom
     onChange({
-      zoom,
-      offsetX: point.x + (element.offsetX - point.x) * ratio,
-      offsetY: point.y + (element.offsetY - point.y) * ratio,
+      zoom: nextZoom,
+      ...constrainOffset(point.x + (offsetX - point.x) * ratio, point.y + (offsetY - point.y) * ratio,
+        drawWidth * ratio, drawHeight * ratio),
     })
   }}>
     <Rect x={-element.width/2} y={-element.height/2} width={element.width} height={element.height} fill="transparent" />
     <KonvaImage
       ref={imageRef}
       image={image}
-      x={baseX}
-      y={baseY}
+      x={offsetX - drawWidth / 2}
+      y={offsetY - drawHeight / 2}
       width={drawWidth}
       height={drawHeight}
       scaleX={element.flipX?-1:1}
       scaleY={element.flipY?-1:1}
       offsetX={element.flipX?drawWidth:0}
       offsetY={element.flipY?drawHeight:0}
-      draggable={selected}
-      onDragStart={(event)=>{event.cancelBubble=true}}
-      onDragEnd={(event)=>{event.cancelBubble=true;onChange({offsetX:event.target.x()-(-drawWidth/2),offsetY:event.target.y()-(-drawHeight/2)})}}
+      draggable={!exporting && !element.locked && (selected || element.isSlot)}
+      onDragStart={(event) => { event.cancelBubble = true; onSelect() }}
+      onDragMove={(event) => {
+        event.cancelBubble = true
+        if (element.isSlot) positionWithinSlot(event.currentTarget)
+      }}
+      onDragEnd={(event) => {
+        event.cancelBubble = true
+        onChange(positionWithinSlot(event.currentTarget))
+      }}
     />
   </Group>
 }
@@ -152,14 +168,14 @@ function ElementNode({ element, selected, exporting, onSelect, onChange, onReque
       y={element.y}
       rotation={element.rotation}
       opacity={element.opacity}
-      draggable={!element.locked && !(selected && element.kind==='image' && Boolean(element.src))}
+      draggable={!element.locked && !(element.kind === 'image' && element.src && (element.isSlot || selected))}
       onClick={(event)=>{event.cancelBubble=true;onSelect();if(element.kind==='image'&&!element.src)onRequestImage()}}
       onTap={(event)=>{event.cancelBubble=true;onSelect();if(element.kind==='image'&&!element.src)onRequestImage()}}
       onDragStart={onSelect}
       onDragEnd={(event)=>onChange({x:event.currentTarget.x(),y:event.currentTarget.y()})}
       onTransformEnd={finishTransform}
     >
-      {element.kind==='image'&&<ImageContent element={element} selected={selected && !element.locked} exporting={exporting} onChange={onChange}/>}
+      {element.kind==='image'&&<ImageContent element={element} selected={selected} exporting={exporting} onSelect={onSelect} onChange={onChange}/>}
       {element.kind==='text'&&<>
         {element.background!=='transparent'&&<Rect x={-element.width/2} y={-element.height/2} width={element.width} height={element.height} fill={element.background} cornerRadius={8}/>} 
         <Text x={-element.width/2} y={-element.height/2} width={element.width} height={element.height} text={element.text} fontFamily={element.fontFamily} fontSize={element.fontSize} fontStyle={element.fontStyle} fill={element.fill} align={element.align} verticalAlign="middle" letterSpacing={element.letterSpacing} lineHeight={element.lineHeight} stroke={element.stroke} strokeWidth={element.strokeWidth} shadowColor={element.shadowColor} shadowBlur={element.shadowBlur} textDecoration={element.underline?'underline':''}/>

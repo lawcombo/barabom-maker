@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import Konva from 'konva'
 import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva'
 import useImage from 'use-image'
@@ -247,6 +247,7 @@ export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage(
 }, ref) {
   const stageRef = useRef<Konva.Stage>(null)
   const hoverIndex = useRef<number | null>(null)
+  const [dropTargetIndex, setDropTargetIndex] = useState(-1)
   const pinch = useRef<{ distance: number; index: number } | null>(null)
   const artboard = ARTBOARD[document.orientation]
   const template = templateById(document.templateId)
@@ -282,17 +283,33 @@ export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage(
     onPhotoChange(index, { ...photo, zoom, offsetX, offsetY })
   }
 
+  const slotAtDropPoint = (event: React.DragEvent<HTMLDivElement>) => {
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const x = (event.clientX - bounds.left) / viewScale
+    const y = (event.clientY - bounds.top) / viewScale
+    return rects.findIndex((rect) => pointInPhotoSlot(rect, x, y))
+  }
+  const dropTarget = rects[dropTargetIndex]
+
   return (
     <div
       className="relative touch-none overflow-hidden rounded-md shadow-[0_24px_60px_rgba(15,23,42,.18)]"
       style={{ width: artboard.width * viewScale, height: artboard.height * viewScale }}
-      onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'copy' }}
-      onDrop={(event) => {
+      onDragOver={(event) => {
+        if (!event.dataTransfer.types.includes('Files')) return
         event.preventDefault()
-        const bounds = event.currentTarget.getBoundingClientRect()
-        const x = (event.clientX - bounds.left) / viewScale
-        const y = (event.clientY - bounds.top) / viewScale
-        const index = rects.findIndex((rect) => pointInPhotoSlot(rect, x, y))
+        const index = slotAtDropPoint(event)
+        event.dataTransfer.dropEffect = index >= 0 ? 'copy' : 'none'
+        setDropTargetIndex(index)
+      }}
+      onDragLeave={(event) => {
+        if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setDropTargetIndex(-1)
+      }}
+      onDrop={(event) => {
+        if (!event.dataTransfer.types.includes('Files')) return
+        event.preventDefault()
+        setDropTargetIndex(-1)
+        const index = slotAtDropPoint(event)
         if (index >= 0) onFilesDropped(Array.from(event.dataTransfer.files), index)
       }}
     >
@@ -390,6 +407,8 @@ export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage(
             </>}
           </Group>)}
           {document.stickers.map((sticker) => <StickerNode key={sticker.id} sticker={sticker} selected={selected?.type === 'sticker' && selected.id === sticker.id} onSelect={() => onSelect({ type:'sticker', id:sticker.id })} onChange={(patch) => onStickerChange(sticker.id, patch)} onDelete={() => onStickerDelete(sticker.id)}/>)}
+          {dropTarget && !exporting && <SlotSurface rect={dropTarget} radius={document.frame.radius} fill="#ede9fe55"
+            stroke="#7c3aed" strokeWidth={4} listening={false}/>}
           {showSafeArea && <Rect x={18} y={18} width={artboard.width - 36} height={artboard.height - 36} stroke="#ef4444" strokeWidth={1} dash={[8,6]} opacity={.75} listening={false}/>} 
         </Layer>
       </Stage>

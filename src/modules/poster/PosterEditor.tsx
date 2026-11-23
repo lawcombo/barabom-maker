@@ -4,7 +4,7 @@ import QRCode from 'qrcode'
 import {
   ArrowDown, ArrowUp, BringToFront, Circle, Copy, Download, Eye, EyeOff,
   FileDown, FolderOpen, ImagePlus, Images, Layers3, LayoutTemplate, Lock, Maximize2, Minus, Palette,
-  QrCode, RotateCcw, Save, SendToBack, Shapes, Sparkles, Square, Sticker, Trash2, Type,
+  QrCode, RotateCcw, SendToBack, Shapes, Sparkles, Square, Sticker, Trash2, Type,
   Unlock, Upload, Wallpaper, ZoomIn, ZoomOut,
 } from 'lucide-react'
 import { StudioHeaderActions } from '../../components/StudioHeaderActions'
@@ -14,7 +14,7 @@ import { PosterTemplateCard } from './PosterTemplateCard'
 import { createBlankPoster, documentFromTemplate, posterCategories, posterSizes, posterTemplates } from './templates'
 import { clonePosterElement, downloadDataUrl, posterEmojis, posterFonts, readPosterImage } from './utils'
 import {
-  deletePosterProject, duplicatePosterProject, exportPosterProject, importPosterProject, listPosterProjects,
+  copyPosterProject, deletePosterProject, exportPosterProject, importPosterProject, listPosterProjects,
   loadLastPosterProject, savePosterProject,
 } from './storage'
 import type { PosterCanvasHandle, PosterDocument, PosterElement, PosterImageElement, PosterPreset, PosterShapeElement, PosterTab, PosterTemplateKind, PosterTextElement } from './types'
@@ -48,7 +48,9 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
   const [history,setHistory]=useState<PosterDocument[]>([])
   const [future,setFuture]=useState<PosterDocument[]>([])
   const [projects,setProjects]=useState<PosterDocument[]>([])
-  const [status,setStatus]=useState('자동 저장 켜짐')
+  const [status,setStatus]=useState('')
+  const [savedDocument,setSavedDocument]=useState<PosterDocument|null>(null)
+  const [saving,setSaving]=useState(false)
   const [viewZoom,setViewZoom]=useState(1)
   const [fitScale,setFitScale]=useState(.55)
   const [showSafeArea,setShowSafeArea]=useState(false)
@@ -66,6 +68,7 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
   const projectInputRef=useRef<HTMLInputElement>(null)
   const templateInputRef=useRef<HTMLInputElement>(null)
   const uploadTarget=useRef<string|null>(null)
+  const startingDocument=useRef(document)
 
   const selected=useMemo(()=>document.elements.find((item)=>item.id===selectedId)??null,[document.elements,selectedId])
   const visibleTemplates = useMemo(() => posterTemplates
@@ -75,16 +78,42 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
   [templateCategory, templateKind])
   const refreshProjects=useCallback(()=>listPosterProjects().then(setProjects),[])
   const commit=useCallback((updater:(current:PosterDocument)=>PosterDocument,record=true)=>{
+    setStatus('')
     setDocument((current)=>{const next={...updater(current),updatedAt:Date.now()};if(record){setHistory((items)=>[...items.slice(-59),current]);setFuture([])}return next})
   },[])
   const undo=useCallback(()=>{setHistory((items)=>{const previous=items.at(-1);if(!previous)return items;setDocument((current)=>{setFuture((next)=>[current,...next].slice(0,60));return previous});return items.slice(0,-1)})},[])
   const redo=useCallback(()=>{setFuture((items)=>{const next=items[0];if(!next)return items;setDocument((current)=>{setHistory((past)=>[...past,current].slice(-60));return next});return items.slice(1)})},[])
   const updateElement=useCallback((id:string,patch:Partial<PosterElement>)=>commit((current)=>({...current,elements:current.elements.map((item)=>item.id===id?({...item,...patch} as PosterElement):item)})),[commit])
   const removeElement=useCallback((id:string)=>{commit((current)=>({...current,elements:current.elements.filter((item)=>item.id!==id)}));setSelectedId(null)},[commit])
-  const addElement=useCallback((element:PosterElement)=>{commit((current)=>({...current,elements:[...current.elements,element]}));setSelectedId(element.id)},[commit])
+  const addElement=useCallback((element:PosterElement)=>{
+    commit((current)=>({...current,elements:[...current.elements,element]}))
+    setSelectedId(element.id)
+    setMobilePanel(false)
+  },[commit])
 
-  useEffect(()=>{if(initialDocument)return;void loadLastPosterProject().then((saved)=>{if(saved)setDocument(saved)})},[initialDocument])
-  useEffect(()=>{const timer=window.setTimeout(()=>savePosterProject(document).then(()=>{setStatus('자동 저장됨');refreshProjects()}),900);return()=>window.clearTimeout(timer)},[document,refreshProjects])
+  const saveCurrentProject=useCallback(async()=>{
+    if(saving)return
+    setSaving(true)
+    setStatus('')
+    try {
+      await savePosterProject(document)
+      setSavedDocument((current)=>current===savedDocument?document:current)
+      await refreshProjects()
+    } catch {
+      setStatus('저장 실패')
+    } finally {
+      setSaving(false)
+    }
+  },[document,refreshProjects,savedDocument,saving])
+
+  useEffect(()=>{
+    if(initialDocument)return
+    void loadLastPosterProject().then((saved)=>{
+      if(!saved)return
+      setDocument((current)=>current===startingDocument.current?saved:current)
+      setSavedDocument(saved)
+    }).catch(()=>setStatus('이전 프로젝트를 불러오지 못했어요'))
+  },[initialDocument])
   useEffect(()=>{refreshProjects()},[refreshProjects])
   useEffect(()=>{
     const workspace=workspaceRef.current;if(!workspace)return
@@ -97,13 +126,13 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
       if(['INPUT','TEXTAREA','SELECT'].includes(target.tagName))return
       if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='z'){event.preventDefault();event.shiftKey?redo():undo();return}
       if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='y'){event.preventDefault();redo();return}
-      if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='s'){event.preventDefault();void savePosterProject(document).then(()=>setStatus('저장 완료'));return}
+      if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='s'){event.preventDefault();void saveCurrentProject();return}
       if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='d'&&selected){event.preventDefault();addElement(clonePosterElement(selected));return}
       if((event.key==='Delete'||event.key==='Backspace')&&selected&&!selected.locked){event.preventDefault();removeElement(selected.id);return}
       if(selected&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)&&!selected.locked){event.preventDefault();const step=event.shiftKey?10:1;updateElement(selected.id,{x:selected.x+(event.key==='ArrowLeft'?-step:event.key==='ArrowRight'?step:0),y:selected.y+(event.key==='ArrowUp'?-step:event.key==='ArrowDown'?step:0)})}
     }
     window.addEventListener('keydown',handler);return()=>window.removeEventListener('keydown',handler)
-  },[document,selected,undo,redo,addElement,removeElement,updateElement])
+  },[selected,undo,redo,addElement,removeElement,updateElement,saveCurrentProject])
 
   const requestImage=(id:string|null=null)=>{uploadTarget.current=id;imageInputRef.current?.click()}
   const addImageFile = async (file: File, targetId: string | null = uploadTarget.current) => {
@@ -143,7 +172,16 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
     const heightMm=isA3?(landscape?297:420):(landscape?210:297)
     return {...current,size:{...current.size,dpi,outputWidth:Math.round(widthMm/25.4*dpi),outputHeight:Math.round(heightMm/25.4*dpi)}}
   })
-  const applyTemplate=(templateId:string)=>{const template=posterTemplates.find((item)=>item.id===templateId);if(!template)return;const next=documentFromTemplate(template);next.id=document.id;next.name=document.name;commit(()=>next);setSelectedId(null)}
+  const applyTemplate=(templateId:string)=>{
+    const template=posterTemplates.find((item)=>item.id===templateId)
+    if(!template)return
+    const next=documentFromTemplate(template)
+    next.id=document.id
+    next.name=document.name
+    commit(()=>next)
+    setSelectedId(null)
+    setMobilePanel(false)
+  }
   const uploadTemplate=async(file:File)=>{
     const src=await readPosterImage(file)
     const next=createBlankPoster('a4-portrait')
@@ -152,7 +190,18 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
     next.background={type:'image',color:'#ffffff',secondary:'#ffffff',imageSrc:src,opacity:1}
     commit(()=>next);setSelectedId(null);setStatus('업로드한 템플릿을 적용했어요')
   }
-  const newProject=()=>{if(window.confirm('현재 작업은 자동 저장됩니다. 새 포스터를 시작할까요?')){setDocument(createBlankPoster());setSelectedId(null);setHistory([]);setFuture([])}}
+  const openProject=(next:PosterDocument,saved:boolean)=>{
+    setDocument(next)
+    setSavedDocument(saved?next:null)
+    setSelectedId(null)
+    setHistory([])
+    setFuture([])
+    setMobilePanel(false)
+    setStatus('')
+  }
+  const newProject=()=>{
+    if(window.confirm('새 포스터를 시작할까요? 저장하지 않은 변경 사항은 사라집니다.'))openProject(createBlankPoster(),false)
+  }
   const capture=async(format:'png'|'jpeg'='png',pixelRatio?:number)=>{
     await window.document.fonts?.ready;setExporting(true);await new Promise((resolve)=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))
     const {width, outputWidth, outputHeight} = document.size
@@ -209,9 +258,9 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
     if(tab==='text')return <><PanelTitle title="텍스트" text="용도에 맞는 텍스트 상자를 추가하세요."/><div className="poster-grid-2"><button className="poster-button" onClick={()=>addElement(newText(document,'title'))}>제목</button><button className="poster-button" onClick={()=>addElement(newText(document,'subtitle'))}>부제목</button><button className="poster-button" onClick={()=>addElement(newText(document,'body'))}>본문</button><button className="poster-button" onClick={()=>addElement(newText(document,'sale'))}>50% OFF</button></div><label className="poster-label">스타일 문구</label>{['GRAND OPEN','SPECIAL EVENT','NEW MENU','HAPPY BIRTHDAY','모집 안내','특별 할인'].map((value)=><button key={value} className="poster-button poster-section" onClick={()=>{const element=newText(document,'title');element.text=value;addElement(element)}}>{value}</button>)}</>
     if(tab==='stickers')return <><PanelTitle title="스티커" text="이모티콘 또는 투명 PNG를 추가하세요."/><div className="poster-emoji-grid">{posterEmojis.map((emoji)=><button key={emoji} onClick={()=>addSticker(emoji)}>{emoji}</button>)}</div><button className="poster-button poster-section" onClick={()=>stickerInputRef.current?.click()}><Upload size={16}/> 내 스티커 업로드</button></>
     if(tab==='shapes')return <><PanelTitle title="도형" text="정보를 강조하거나 영역을 가릴 때 활용하세요."/><div className="poster-shape-grid">{(['rect','circle','triangle','line','arrow','bubble','banner'] as PosterShapeElement['shape'][]).map((shape)=><button key={shape} onClick={()=>addShape(shape)}>{shape==='rect'?'사각형':shape==='circle'?'원형':shape==='triangle'?'삼각형':shape==='line'?'직선':shape==='arrow'?'화살표':shape==='bubble'?'말풍선':'배너'}</button>)}</div></>
-    if(tab==='background')return <><PanelTitle title="배경" text="단색, 그라데이션 또는 이미지를 사용하세요."/><div className="poster-grid-2"><button className="poster-button" onClick={()=>commit((d)=>({...d,background:{...d.background,type:'color'}}))}>단색</button><button className="poster-button" onClick={()=>commit((d)=>({...d,background:{...d.background,type:'gradient'}}))}>그라데이션</button></div><label className="poster-label">기본 색상</label><input className="poster-color" type="color" value={document.background.color} onChange={(event)=>commit((d)=>({...d,background:{...d.background,color:event.target.value}}))}/><label className="poster-label">두 번째 색상</label><input className="poster-color" type="color" value={document.background.secondary} onChange={(event)=>commit((d)=>({...d,background:{...d.background,secondary:event.target.value}}))}/><button className="poster-button poster-section" onClick={()=>backgroundInputRef.current?.click()}><Upload size={16}/> 배경 이미지 업로드</button></>
-    if(tab==='layers')return <><PanelTitle title="레이어" text="위에 있는 항목이 캔버스에서도 앞에 표시됩니다."/>{[...document.elements].reverse().map((element)=><div key={element.id} className={`poster-layer ${selectedId===element.id?'active':''}`} onClick={()=>setSelectedId(element.id)}><button onClick={(event)=>{event.stopPropagation();updateElement(element.id,{visible:!element.visible})}}>{element.visible?<Eye size={14}/>:<EyeOff size={14}/>}</button><input value={element.name} onClick={(event)=>event.stopPropagation()} onChange={(event)=>updateElement(element.id,{name:event.target.value})}/><div className="poster-layer-actions"><button onClick={(event)=>{event.stopPropagation();updateElement(element.id,{locked:!element.locked})}}>{element.locked?<Lock size={13}/>:<Unlock size={13}/>}</button><button onClick={(event)=>{event.stopPropagation();reorder(element.id,'up')}}><ArrowUp size={13}/></button><button onClick={(event)=>{event.stopPropagation();reorder(element.id,'down')}}><ArrowDown size={13}/></button></div></div>)}</>
-    return <><PanelTitle title="프로젝트" text="포스터 프로젝트는 인생네컷과 별도로 저장됩니다."/><button className="poster-button primary" onClick={()=>savePosterProject(document).then(()=>{setStatus('저장 완료');refreshProjects()})}><Save size={15}/> 현재 프로젝트 저장</button><div className="poster-grid-2 poster-section"><button className="poster-button" onClick={()=>exportPosterProject(document)}><FileDown size={15}/> 내보내기</button><button className="poster-button" onClick={()=>projectInputRef.current?.click()}><Upload size={15}/> 가져오기</button></div><div className="poster-section">{projects.map((project)=><div key={project.id} className="poster-project-card"><strong>{project.name}</strong><span>{new Date(project.updatedAt).toLocaleString('ko-KR')}</span><div className="poster-project-actions"><button onClick={()=>{setDocument(project);setSelectedId(null)}}>열기</button><button onClick={()=>duplicatePosterProject(project).then(refreshProjects)}>복제</button><button onClick={()=>deletePosterProject(project.id).then(refreshProjects)}>삭제</button></div></div>)}</div></>
+    if(tab==='background')return <><PanelTitle title="배경" text="단색, 그라데이션 또는 이미지를 사용하세요."/><div className="poster-grid-2"><button className="poster-button" onClick={()=>{commit((d)=>({...d,background:{...d.background,type:'color'}}));setMobilePanel(false)}}>단색</button><button className="poster-button" onClick={()=>{commit((d)=>({...d,background:{...d.background,type:'gradient'}}));setMobilePanel(false)}}>그라데이션</button></div><label className="poster-label">기본 색상</label><input className="poster-color" type="color" value={document.background.color} onChange={(event)=>commit((d)=>({...d,background:{...d.background,color:event.target.value}}))}/><label className="poster-label">두 번째 색상</label><input className="poster-color" type="color" value={document.background.secondary} onChange={(event)=>commit((d)=>({...d,background:{...d.background,secondary:event.target.value}}))}/><button className="poster-button poster-section" onClick={()=>backgroundInputRef.current?.click()}><Upload size={16}/> 배경 이미지 업로드</button></>
+    if(tab==='layers')return <><PanelTitle title="레이어" text="위에 있는 항목이 캔버스에서도 앞에 표시됩니다."/>{[...document.elements].reverse().map((element)=><div key={element.id} className={`poster-layer ${selectedId===element.id?'active':''}`} onClick={()=>{setSelectedId(element.id);setMobilePanel(false)}}><button onClick={(event)=>{event.stopPropagation();updateElement(element.id,{visible:!element.visible})}}>{element.visible?<Eye size={14}/>:<EyeOff size={14}/>}</button><input value={element.name} onClick={(event)=>event.stopPropagation()} onChange={(event)=>updateElement(element.id,{name:event.target.value})}/><div className="poster-layer-actions"><button onClick={(event)=>{event.stopPropagation();updateElement(element.id,{locked:!element.locked})}}>{element.locked?<Lock size={13}/>:<Unlock size={13}/>}</button><button onClick={(event)=>{event.stopPropagation();reorder(element.id,'up')}}><ArrowUp size={13}/></button><button onClick={(event)=>{event.stopPropagation();reorder(element.id,'down')}}><ArrowDown size={13}/></button></div></div>)}</>
+    return <><PanelTitle title="프로젝트" text="헤더의 저장 버튼을 누르면 이 브라우저에 저장돼요."/><div className="poster-grid-2 poster-section"><button className="poster-button" onClick={()=>exportPosterProject(document)}><FileDown size={15}/> 내보내기</button><button className="poster-button" onClick={()=>projectInputRef.current?.click()}><Upload size={15}/> 가져오기</button></div><div className="poster-section">{projects.map((project)=><div key={project.id} className="poster-project-card"><strong>{project.name}</strong><span>{new Date(project.updatedAt).toLocaleString('ko-KR')}</span><div className="poster-project-actions"><button onClick={()=>openProject(project,true)}>열기</button><button onClick={()=>openProject(copyPosterProject(project),false)}>복제</button><button onClick={()=>deletePosterProject(project.id).then(refreshProjects)}>삭제</button></div></div>)}</div></>
   }
 
   const renderInspector=()=>{
@@ -226,22 +275,29 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
 
   const actualScale=fitScale*viewZoom
   return <div className="poster-shell">
-    <input ref={imageInputRef} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={(event)=>{const file=event.target.files?.[0];if(file)void addImageFile(file);event.target.value=''}}/>
-    <input ref={backgroundInputRef} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={async(event)=>{const file=event.target.files?.[0];if(file){const src=await readPosterImage(file);commit((d)=>({...d,background:{...d.background,type:'image',imageSrc:src}}))}event.target.value=''}}/>
+    <input ref={imageInputRef} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={(event)=>{const file=event.target.files?.[0];if(file){setMobilePanel(false);void addImageFile(file)}event.target.value=''}}/>
+    <input ref={backgroundInputRef} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={async(event)=>{const file=event.target.files?.[0];if(file){setMobilePanel(false);const src=await readPosterImage(file);commit((d)=>({...d,background:{...d.background,type:'image',imageSrc:src}}))}event.target.value=''}}/>
     <input ref={stickerInputRef} hidden type="file" accept="image/png,image/webp" onChange={async(event)=>{const file=event.target.files?.[0];if(file)addSticker(await readPosterImage(file),'image');event.target.value=''}}/>
-    <input ref={projectInputRef} hidden type="file" accept=".json,.barabom-poster.json" onChange={async(event)=>{const file=event.target.files?.[0];if(file){try{setDocument(await importPosterProject(file));setStatus('프로젝트를 가져왔어요')}catch{setStatus('올바른 포스터 파일이 아니에요')}}event.target.value=''}}/>
-    <input ref={templateInputRef} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={(event)=>{const file=event.target.files?.[0];if(file)void uploadTemplate(file);event.target.value=''}}/>
+    <input ref={projectInputRef} hidden type="file" accept=".json,.barabom-poster.json" onChange={async(event)=>{const file=event.target.files?.[0];if(file){setMobilePanel(false);try{openProject(await importPosterProject(file),false)}catch{setStatus('올바른 포스터 파일이 아니에요')}}event.target.value=''}}/>
+    <input ref={templateInputRef} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={(event)=>{const file=event.target.files?.[0];if(file){setMobilePanel(false);void uploadTemplate(file)}event.target.value=''}}/>
     <header className="poster-header studio-editor-header">
       <button className="poster-header-brand" onClick={onExit}><img src={`${import.meta.env.BASE_URL}barabom-mark.svg`} alt=""/><div><strong>너를, 바라봄</strong><span>POSTER STUDIO</span></div></button>
-      <div className="poster-header-name"><input aria-label="프로젝트 이름" value={document.name} onChange={(event)=>commit((d)=>({...d,name:event.target.value}),false)}/><span style={{fontSize:11,color:'#94a3b8'}}>{status}</span></div>
-      <StudioHeaderActions onBack={onExit} onNew={newProject} onSave={() => void savePosterProject(document).then(() => setStatus('저장 완료'))}
+      <div className="poster-header-name"><input aria-label="프로젝트 이름" value={document.name} onChange={(event)=>commit((d)=>({...d,name:event.target.value}),false)}/><span className="studio-save-status" role="status">{saving ? '저장 중…' : status || (document === savedDocument ? '저장 완료' : '저장 필요')}</span></div>
+      <StudioHeaderActions onBack={onExit} onNew={newProject} onSave={() => void saveCurrentProject()} saving={saving}
         onUndo={undo} onRedo={redo} canUndo={history.length > 0} canRedo={future.length > 0}
         onPreview={() => void showPreview()} onDownload={() => setDownloadOpen(true)} />
     </header>
     <div className="poster-editor-body">
-      <nav className="poster-tools">{tabs.map((item)=><button key={item.id} className={tab===item.id?'active':''} onClick={()=>{setTab(item.id);setMobilePanel(true)}}><item.icon size={19}/><span>{item.label}</span></button>)}</nav>
-      {mobilePanel&&<aside className="poster-panel"><button className="poster-button" style={{display:window.innerWidth<821?'flex':'none',marginBottom:12}} onClick={()=>setMobilePanel(false)}>패널 닫기</button>{renderTab()}</aside>}
+      <nav className="poster-tools">{tabs.map((item)=><button key={item.id} aria-controls="poster-tool-panel" className={tab===item.id?'active':''} onClick={()=>{
+        setTab(item.id)
+        setMobilePanel((open) => tab !== item.id || !open)
+      }}><item.icon size={19}/><span>{item.label}</span></button>)}</nav>
+      <aside id="poster-tool-panel" className={`poster-panel ${mobilePanel?'mobile-open':''}`}>
+        <button className="poster-button poster-mobile-close" onClick={()=>setMobilePanel(false)}>패널 닫기</button>
+        {renderTab()}
+      </aside>
       <main ref={workspaceRef} className="poster-workspace"
+        onClick={() => setMobilePanel(false)}
         onDragOver={(event) => {
           if (!event.dataTransfer.types.includes('Files')) return
           event.preventDefault()

@@ -53,7 +53,5 @@ export function exportProjectFile(document: EditorDocument) {
 export async function importProjectFile(file: File) {
   const parsed = JSON.parse(await file.text()) as EditorDocument
   if (parsed.version !== 1 || !Array.isArray(parsed.photos)) throw new Error('지원하지 않는 프로젝트 파일입니다.')
-  const imported = migrateBrand({ ...parsed, id: crypto.randomUUID(), updatedAt: Date.now() })
-  await saveProject(imported)
-  return imported
+  return migrateBrand({ ...parsed, id: crypto.randomUUID(), updatedAt: Date.now() })
 }

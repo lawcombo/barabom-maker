@@ -5,6 +5,16 @@
   gap: 5px;
 }
 
+.studio-save-status {
+  flex: none;
+  max-width: 132px;
+  overflow: hidden;
+  color: #64748b;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .studio-header-button {
   display: inline-flex;
   flex: none;

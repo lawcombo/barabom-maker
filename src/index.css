@@ -86,8 +86,8 @@ button { -webkit-tap-highlight-color: transparent; }
   .editor-header { height:58px; }
   .tool-nav { width:58px; }
   .tool-nav button { min-height:57px; font-size:9px; }
-  .left-panel { position:fixed; left:58px; top:58px; bottom:27px; width:min(300px, calc(100vw - 58px)); transform:translateX(-110%); transition:transform .2s ease; box-shadow:20px 0 40px rgba(15,23,42,.12); }
-  .left-panel.mobile-open { transform:translateX(0); }
+  .left-panel { position:fixed; left:58px; top:58px; bottom:27px; width:min(300px, calc(100vw - 58px)); visibility:hidden; pointer-events:none; transform:translateX(-110%); transition:transform .2s ease, visibility 0s linear .2s; box-shadow:20px 0 40px rgba(15,23,42,.12); }
+  .left-panel.mobile-open { visibility:visible; pointer-events:auto; transform:translateX(0); transition-delay:0s; }
   .mobile-close { display:block; }
   .canvas-center { padding:24px; }
   .zoom-bar { bottom:36px; }

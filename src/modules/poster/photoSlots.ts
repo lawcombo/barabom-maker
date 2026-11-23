@@ -1,4 +1,22 @@
-import type { PosterElement } from './types'
+import type { PosterElement, PosterImageElement } from './types'
+
+export function clampSlotPhotoOffset(
+  slot: Pick<PosterImageElement, 'width' | 'height' | 'mask'>,
+  drawWidth: number,
+  drawHeight: number,
+  offsetX: number,
+  offsetY: number,
+) {
+  const diameter = Math.min(slot.width, slot.height)
+  const width = slot.mask === 'circle' ? diameter : slot.width
+  const height = slot.mask === 'circle' ? diameter : slot.height
+  const limitX = Math.max(0, (drawWidth - width) / 2)
+  const limitY = Math.max(0, (drawHeight - height) / 2)
+  return {
+    offsetX: Math.max(-limitX, Math.min(limitX, offsetX)),
+    offsetY: Math.max(-limitY, Math.min(limitY, offsetY)),
+  }
+}
 
 export function findPhotoSlotAt(
   elements: readonly PosterElement[],

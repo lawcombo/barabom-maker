@@ -11,13 +11,14 @@ type StudioHeaderActionsProps = {
   onDownload: () => void
   canUndo: boolean
   canRedo: boolean
+  saving: boolean
 }
 
 export function StudioHeaderActions(props: StudioHeaderActionsProps) {
   const actions = [
     { label:'메인', icon:ArrowLeft, onClick:props.onBack },
     { label:'새 프로젝트', icon:Plus, onClick:props.onNew },
-    { label:'저장', icon:Save, onClick:props.onSave },
+    { label:'저장', icon:Save, onClick:props.onSave, disabled:props.saving },
     { label:'실행 취소', icon:Undo2, onClick:props.onUndo, disabled:!props.canUndo },
     { label:'다시 실행', icon:Redo2, onClick:props.onRedo, disabled:!props.canRedo },
     { label:'미리보기', icon:Eye, onClick:props.onPreview },
