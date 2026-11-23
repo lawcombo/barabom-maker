@@ -1,22 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title description">
   <title id="title">너를, 바라봄</title>
-  <desc id="description">눈과 카메라 렌즈를 형상화한 바라봄 스튜디오 심볼</desc>
+  <desc id="description">샴페인 골드 B 모노그램을 담은 바라봄 스튜디오 엠블럼</desc>
   <defs>
-    <linearGradient id="background" x1="8" y1="7" x2="57" y2="60" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#111827"/>
-      <stop offset="0.58" stop-color="#312E81"/>
-      <stop offset="1" stop-color="#6D28D9"/>
+    <linearGradient id="ink" x1="8" y1="7" x2="56" y2="59" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#171B26"/>
+      <stop offset="1" stop-color="#080A0F"/>
     </linearGradient>
-    <linearGradient id="iris" x1="23" y1="23" x2="42" y2="43" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#C4B5FD"/>
-      <stop offset="0.52" stop-color="#8B5CF6"/>
-      <stop offset="1" stop-color="#EC4899"/>
+    <linearGradient id="gold" x1="18" y1="14" x2="47" y2="50" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F3E3BC"/>
+      <stop offset="0.48" stop-color="#CFA96A"/>
+      <stop offset="1" stop-color="#9B733D"/>
     </linearGradient>
   </defs>
-  <rect x="2" y="2" width="60" height="60" rx="18" fill="url(#background)"/>
-  <path d="M11.5 33C17.4 23.4 24.2 19 32 19s14.6 4.4 20.5 14C46.6 42.6 39.8 47 32 47s-14.6-4.4-20.5-14Z" fill="#fff"/>
-  <circle cx="32" cy="33" r="10.7" fill="url(#iris)"/>
-  <circle cx="32" cy="33" r="4.6" fill="#111827"/>
-  <circle cx="36" cy="29" r="2.15" fill="#fff"/>
-  <path d="m49.5 10 1.45 3.55L54.5 15l-3.55 1.45L49.5 20l-1.45-3.55L44.5 15l3.55-1.45L49.5 10Z" fill="#F9A8D4"/>
+  <rect x="2" y="2" width="60" height="60" rx="17" fill="url(#ink)"/>
+  <rect x="4.25" y="4.25" width="55.5" height="55.5" rx="14.75" fill="none" stroke="url(#gold)" stroke-width="0.75" opacity="0.55"/>
+  <circle cx="32" cy="32" r="20" fill="none" stroke="url(#gold)" stroke-width="0.65" opacity="0.25"/>
+  <path d="M21 47V17h10.5C38 17 42 20.1 42 25.1c0 4.6-3.7 7.4-10.3 7.4H21m10.7 0c7.9 0 12.3 2.7 12.3 7.4 0 4.6-4.3 7.1-11.4 7.1H21" fill="none" stroke="url(#gold)" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="32" cy="32.5" r="2.35" fill="#0B0D13" stroke="url(#gold)" stroke-width="1.1"/>
 </svg>
