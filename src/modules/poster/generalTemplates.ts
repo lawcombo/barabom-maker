@@ -1,0 +1,307 @@
+import { posterAsset, posterSizes, shape, text } from './templateParts'
+import type { PosterBackground, PosterElement, PosterPreset, PosterTemplate, PosterTextElement } from './types'
+
+const display = 'Black Han Sans'
+const serif = 'Gowun Batang'
+const rounded = 'Jua'
+
+function copy(
+  name: string, value: string, x: number, y: number, width: number, height: number,
+  fontSize: number, fill: string, options: {
+    font?: string; align?: PosterTextElement['align']; regular?: boolean
+  } = {},
+) {
+  return {
+    ...text(name, name, value, x + width / 2, y + height / 2, width, height, fontSize, fill,
+      options.font, options.align, options.regular ? 'normal' : 'bold'),
+    lineHeight: 1.25,
+  }
+}
+
+const centered = { align: 'center' } as const
+const body = { regular: true }
+const block = (name: string, x: number, y: number, width: number, height: number, fill: string, radius = 0) =>
+  shape(name, name, 'rect', x + width / 2, y + height / 2, width, height, fill, radius)
+const disc = (name: string, x: number, y: number, diameter: number, fill: string) =>
+  shape(name, name, 'circle', x + diameter / 2, y + diameter / 2, diameter, diameter, fill)
+
+function poster(
+  id: string, name: string, category: string, color: string, elements: PosterElement[],
+  { preset = 'a4-portrait', photo, gradient }: { preset?: PosterPreset; photo?: string; gradient?: string } = {},
+): PosterTemplate {
+  const background: PosterBackground = {
+    type: photo ? 'image' : gradient ? 'gradient' : 'color',
+    color,
+    secondary: gradient ?? color,
+    imageSrc: photo ? posterAsset(photo) : '',
+    opacity: 1,
+  }
+  return {
+    id, name, category, kind: 'poster', tags: [name, category],
+    recommended: true, size: posterSizes[preset], background, elements,
+  }
+}
+
+// The templates contain editable layers. The photos used as backgrounds carry no text.
+export const generalPosterTemplates = [
+  poster('community-board', '게시판 공지', '공지사항', '#ecf1fc', [
+    block('제목 배경', 44, 44, 632, 255, '#132e70', 24),
+    copy('게시 주체', '아파트 관리사무소', 77, 75, 567, 42, 22, '#c9dbff'),
+    copy('제목', '시설 점검 안내', 77, 123, 567, 140, 72, '#ffffff', { font: display }),
+    block('일정 배경', 44, 324, 632, 116, '#d8e4ff', 17),
+    copy('점검 일시', '6월 12일 금요일  ·  09:00–13:00', 75, 349, 570, 65, 30, '#132e70'),
+    block('안내문 배경', 44, 465, 632, 388, '#ffffff', 20),
+    copy('점검 장소', '장소  |  1층 주 출입구', 76, 493, 560, 54, 30, '#132e70'),
+    block('안내 구분선', 76, 560, 568, 2, '#c8d5f1'),
+    copy('본문', '정기 점검 중에는 주 출입구 이용이\n제한됩니다. 해당 시간에는 건물\n오른쪽 출입구를 이용해 주세요.', 76, 580, 560, 166, 29, '#223048', body),
+    copy('유의 사항', '점검이 끝나면 다시 이용하실 수 있습니다.', 76, 761, 568, 54, 23, '#3b537c', body),
+    copy('연락처', '문의  |  관리사무소 02-000-0000', 48, 882, 624, 70, 24, '#132e70'),
+  ]),
+  poster('weekend-makers', '주말 메이커 마켓', '행사·이벤트', '#fff3ce', [
+    block('좌측 색면', 0, 0, 36, 1018, '#fa6a45'),
+    disc('장식 원', 462, 53, 205, '#ffba48'),
+    disc('작은 장식 원', 497, 285, 116, '#b6d9b9'),
+    copy('주최', '동네 창작자들의 주말 장터', 73, 63, 510, 47, 25, '#2a3d2c'),
+    copy('제목', '주말 메이커\n마켓', 68, 140, 590, 292, 108, '#202b1e', { font: display }),
+    block('날짜 구분선', 72, 482, 582, 4, '#202b1e'),
+    copy('날짜와 시간', '6.20 SAT  /  11:00–18:00', 72, 517, 582, 80, 42, '#202b1e', { font: display }),
+    copy('장소', '중앙광장 야외 테라스', 74, 611, 578, 55, 30, '#202b1e'),
+    copy('프로그램', '도자기 · 리소그래프 · 독립출판\n오후 2시에는 실크스크린 체험이 열려요.', 74, 686, 578, 115, 27, '#2a3d2c', body),
+    block('하단 색면', 36, 872, 684, 146, '#202b1e'),
+    copy('입장 안내', '무료 입장  /  체험은 현장 신청', 73, 902, 586, 71, 29, '#fff3ce'),
+  ]),
+  poster('coffee-tasting', '라테 테이스팅 메뉴', '카페·음식점', '#f6eadc', [
+    block('메뉴판 여백', 18, 667, 684, 333, '#fff7eb', 18),
+    copy('메뉴 제목', '오늘의 라테', 55, 691, 615, 88, 60, '#3d251e', { font: serif }),
+    copy('메뉴 설명', '부드러운 크림과 깊은 에스프레소', 55, 786, 610, 49, 27, '#5a412f', body),
+    block('가격 구분선', 55, 856, 610, 2, '#c7a993'),
+    copy('제품 이름', '시그니처 크림 라테', 55, 882, 385, 63, 28, '#3d251e'),
+    copy('가격', '₩ 6,500', 448, 878, 215, 71, 45, '#3d251e', { font: serif, align: 'right' }),
+  ], { photo: 'poster-latte.jpg' }),
+  poster('opening-hours-board', '운영시간 안내판', '공지사항', '#edf4e8', [
+    copy('장소', '우리 동네 작은도서관', 58, 63, 604, 56, 24, '#37614a', centered),
+    copy('제목', '운영시간 안내', 48, 132, 624, 111, 67, '#193f2d', { ...centered, font: serif }),
+    block('운영시간 표', 52, 289, 616, 546, '#fffdfa', 19),
+    block('표 머리글 배경', 52, 289, 616, 88, '#245640', 19),
+    copy('요일 열 제목', '요일', 86, 299, 151, 62, 22, '#ffffff'),
+    copy('이용시간 열 제목', '이용 시간', 251, 299, 360, 62, 22, '#ffffff'),
+    copy('평일', '화–금', 86, 405, 165, 85, 31, '#193f2d'),
+    copy('평일 시간', '10:00–19:00', 251, 405, 360, 85, 47, '#193f2d', { font: display }),
+    block('평일 구분선', 86, 508, 548, 2, '#d1e2d4'),
+    copy('주말', '토–일', 86, 533, 165, 85, 31, '#193f2d'),
+    copy('주말 시간', '10:00–17:00', 251, 533, 360, 85, 47, '#193f2d', { font: display }),
+    block('주말 구분선', 86, 636, 548, 2, '#d1e2d4'),
+    copy('휴관일', '월요일 · 공휴일', 86, 665, 278, 96, 30, '#193f2d'),
+    copy('휴관 여부', '휴관', 373, 665, 240, 96, 42, '#8a4430', { font: display }),
+    copy('문의', '대출·반납 문의  |  02-000-0000', 52, 875, 616, 62, 24, '#37614a', centered),
+  ]),
+  poster('three-day-sale', '3일 한정 세일', '할인·세일', '#fa4b23', [
+    block('상단 날짜 띠', 44, 54, 632, 67, '#331b10', 34),
+    copy('세일 기간', '6.19 FRI — 6.21 SUN  /  3 DAYS ONLY', 60, 61, 600, 53, 27, '#fff6dd', centered),
+    copy('제목', '주말 특가', 39, 141, 642, 128, 90, '#281b13', { ...centered, font: display }),
+    block('할인율 배경', 45, 290, 630, 339, '#ffe272', 20),
+    copy('할인율', '50%', 50, 302, 620, 316, 239, '#2a1a12', { ...centered, font: display }),
+    copy('대상 상품', '여름 의류 · 잡화 최대 50% 할인', 57, 667, 606, 88, 36, '#281b13', centered),
+    block('세부 조건 배경', 46, 801, 628, 163, '#331b10', 17),
+    copy('적용 조건', '매장 방문 고객 한정\n일부 품목 제외 · 재고 소진 시 종료', 70, 829, 580, 108, 25, '#fff6dd', centered),
+  ]),
+  poster('closing-note', '오늘은 쉽니다', '공지사항', '#fffaf0', [
+    disc('휴무 아이콘 배경', 289, 91, 142, '#f6d0ad'),
+    copy('휴무 표시', '×', 289, 91, 142, 142, 84, '#743421', { ...centered, font: serif }),
+    copy('제목', '오늘은 쉽니다', 52, 259, 616, 123, 79, '#412820', { ...centered, font: serif }),
+    copy('쉬는 날', '6월 8일 월요일 · 임시 휴무', 55, 405, 610, 72, 34, '#793a26', centered),
+    block('본문 구분선', 218, 511, 284, 2, '#c9a38a'),
+    copy('안내 본문', '매장 정비를 위해 하루 쉬어 갑니다.\n6월 9일 화요일 오전 10시에 다시 만나요.', 55, 568, 610, 119, 27, '#493a30', { ...centered, ...body }),
+    copy('매장명', '바라봄 카페', 60, 806, 600, 71, 33, '#412820', { ...centered, font: serif }),
+    copy('연락처', '문의 02-000-0000', 60, 889, 600, 53, 22, '#703e29', centered),
+  ]),
+  poster('after-hours-exhibition', '한밤의 사운드 전시', '공연·전시', '#101020', [
+    disc('진동 원', 419, 100, 253, '#e044a2'),
+    disc('겹치는 원', 335, 145, 234, '#5336ec'),
+    disc('안쪽 원', 365, 184, 156, '#181533'),
+    block('상단 구분선', 50, 67, 357, 2, '#ae9cf7'),
+    copy('전시명 표기', 'AFTER HOURS  /  SOUND EXHIBITION', 50, 77, 380, 52, 17, '#ded0ff'),
+    copy('제목', '빛이\n멈춘 뒤', 49, 228, 626, 348, 132, '#fcf4ff', { font: display }),
+    copy('전시 소개', '소리와 빛으로 채운 밤의 전시장', 54, 584, 600, 65, 33, '#f0ceff'),
+    block('일정 구분선', 54, 736, 612, 2, '#a997e9'),
+    copy('전시 기간', '6.13–7.12  /  목–일 18:00–22:00', 54, 765, 612, 57, 25, '#fcf4ff'),
+    copy('관람 장소', '바라봄 아트홀 B1  ·  입장 마감 21:30', 54, 858, 612, 52, 22, '#d6c7ef', body),
+  ], { gradient: '#333165' }),
+  poster('visitor-guide', '이용 안내 3단계', '공지사항', '#fffaf3', [
+    block('상단 색면', 0, 0, 720, 295, '#164542'),
+    copy('시설명', '공유 작업실 이용 가이드', 58, 54, 604, 51, 25, '#bce8ce'),
+    copy('제목', '처음 오셨나요?', 56, 122, 608, 113, 72, '#fffaf3', { font: display }),
+    ...[
+      ['01', '입실 확인', '예약 시간에 안내 데스크에서 이름을 알려 주세요.'],
+      ['02', '자리 이용', '지정된 작업대에 앉아 준비된 도구를 사용해 주세요.'],
+      ['03', '퇴실 정리', '사용한 도구와 자리를 정리하고 직원에게 알려 주세요.'],
+    ].flatMap(([number, title, instruction], index) => {
+      const y = 329 + index * 174
+      return [
+        disc(`단계 ${number} 배경`, 55, y + 8, 72, '#d9ead7'),
+        copy(`단계 ${number}`, number, 55, y + 8, 72, 72, 34, '#164542', { ...centered, font: display }),
+        copy(`단계 ${number} 제목`, title, 155, y, 506, 53, 31, '#164542'),
+        copy(`단계 ${number} 설명`, instruction, 155, y + 56, 506, 64, 24, '#2e4843', body),
+        block(`단계 ${number} 구분선`, 155, y + 132, 506, 2, '#d3e3d8'),
+      ]
+    }),
+    copy('문의', '이용 중 도움이 필요하면 데스크에 말씀해 주세요.', 55, 901, 610, 61, 23, '#164542'),
+  ]),
+  poster('corner-shop-opening', '골목 소품점 오픈', '매장 홍보', '#2c2b1f', [
+    { ...block('사진 위 음영', 0, 0, 720, 1018, '#252018'), opacity: .24 },
+    block('초대장 배경', 36, 577, 648, 401, '#f6efd8'),
+    copy('매장 이름', '골목 끝 작은 소품점', 68, 604, 577, 53, 26, '#59472a'),
+    copy('제목', '문을 열었습니다', 68, 659, 578, 104, 63, '#222d22', { font: serif }),
+    block('메시지 구분선', 70, 779, 574, 2, '#a89060'),
+    copy('오픈 일시', '6월 13일 토요일 · 오전 11시부터', 70, 806, 574, 57, 26, '#373222'),
+    copy('매장 주소', '골목길 12, 1층  /  그릇 · 꽃병 · 생활 소품', 70, 878, 574, 54, 23, '#373222', body),
+  ], { photo: 'premium-boutique.webp' }),
+  poster('temporary-service-change', '일정 변경 안내문', '공지사항', '#fff6db', [
+    block('왼쪽 띠', 0, 0, 27, 1018, '#aa3b27'),
+    copy('문서 발신처', '문화센터 프로그램 안내', 64, 58, 593, 58, 24, '#783123'),
+    copy('제목', '일정이 변경됩니다', 61, 121, 605, 120, 64, '#55261a', { font: display }),
+    block('기존 일정 배경', 64, 292, 592, 147, '#f6dfac', 13),
+    copy('기존 표시', '기존', 84, 314, 97, 97, 26, '#682e21'),
+    copy('기존 일정', '6월 12일 · 금요일 오후 2시', 196, 314, 434, 97, 30, '#70432c'),
+    block('변경 일정 배경', 64, 456, 592, 147, '#ac402c', 13),
+    copy('변경 표시', '변경', 84, 478, 97, 97, 26, '#ffffff'),
+    copy('변경 일정', '6월 19일 · 금요일 오후 2시', 196, 478, 434, 97, 30, '#ffffff'),
+    copy('변경 사유', '강의실 정비로 수업이 한 주 미뤄집니다.\n기존 신청은 변경된 일정에 그대로 적용됩니다.', 65, 655, 590, 153, 28, '#532f24', body),
+    block('문의 구분선', 65, 839, 590, 2, '#d4a370'),
+    copy('문의처', '문의  |  문화센터 안내 데스크', 65, 868, 590, 78, 25, '#783123'),
+  ]),
+  poster('studio-hiring', '함께 만드는 팀', '채용·모집', '#e1f7c8', [
+    block('공고 테두리 바탕', 35, 35, 650, 948, '#172f27', 23),
+    block('공고 배경', 40, 40, 640, 938, '#e1f7c8', 20),
+    copy('공고 구분', 'BARABOM CREATIVE STUDIO', 69, 67, 581, 57, 22, '#234e3e'),
+    copy('제목', '동료를\n찾습니다', 66, 121, 587, 259, 98, '#14362c', { font: display }),
+    block('직무 배경', 68, 410, 584, 103, '#285741', 13),
+    copy('모집 직무', '콘텐츠 디자이너  ·  1명', 88, 425, 541, 72, 35, '#efffe0'),
+    copy('업무 설명', '브랜드의 소식과 캠페인 이미지를 만듭니다.\n지원 시 간단한 자기소개와 작업물을 보내 주세요.', 70, 547, 580, 130, 27, '#234e3e', body),
+    block('지원 구분선', 69, 736, 582, 2, '#78a982'),
+    copy('지원 마감', '접수 마감  6월 30일 오후 6시', 70, 754, 580, 65, 30, '#14362c'),
+    copy('지원 이메일', '이메일  apply@example.com', 70, 841, 580, 73, 27, '#234e3e'),
+  ]),
+  poster('weekend-workshop', '주말 드로잉 수업', '교육·학원', '#f3e9ff', [
+    block('수업 카드', 50, 47, 620, 481, '#fffcf6', 25),
+    disc('색연필 1', 470, 92, 104, '#ffd76b'),
+    disc('색연필 2', 518, 154, 110, '#feb5a5'),
+    disc('색연필 3', 434, 184, 112, '#b7b6ff'),
+    copy('강좌 성격', '성인 대상 · 4주 과정', 80, 77, 389, 66, 27, '#534176'),
+    copy('제목', '처음 배우는\n드로잉', 77, 167, 572, 263, 94, '#3e2865', { font: rounded }),
+    copy('수업 소개', '연필 한 자루로 일상의 풍경을 그려요.', 82, 430, 549, 65, 26, '#4d3d67', body),
+    block('모집 정보 배경', 50, 565, 620, 269, '#4b3280', 25),
+    copy('수업 일정', '매주 토요일 10:00–12:00', 82, 590, 541, 68, 33, '#fff9ee'),
+    copy('수강 대상', '그림을 처음 시작하는 성인 8명', 82, 670, 541, 60, 28, '#f8eeff'),
+    copy('준비물', '연필, 지우개, 스케치북 지참', 82, 745, 542, 54, 24, '#e8d8ff', body),
+    copy('신청 방법', '신청  |  문화센터 2층 안내 데스크', 55, 884, 611, 63, 27, '#3e2865', centered),
+  ]),
+  poster('birthday-table', '케이크 테이블 초대장', '생일·파티', '#f7d6e3', [
+    block('초대 문구 배경', 32, 39, 656, 319, '#fff3ea', 40),
+    copy('상단 문구', '함께 축하해 주세요!', 60, 67, 600, 61, 31, '#963f63', { ...centered, font: rounded }),
+    copy('제목', '지우의 생일 파티', 52, 139, 616, 132, 75, '#802c50', { ...centered, font: rounded }),
+    copy('초대 문구', '케이크와 함께하는 즐거운 오후', 62, 272, 596, 52, 25, '#783957', centered),
+    block('파티 정보 배경', 32, 746, 656, 233, '#963f63', 34),
+    copy('날짜와 시간', '6월 20일 토요일  ·  오후 3시', 60, 772, 600, 78, 34, '#fff7f3', centered),
+    copy('장소', '바라봄 라운지 2층', 60, 853, 600, 62, 30, '#fff7f3', centered),
+    copy('참석 회신', '참석 여부를 6월 17일까지 알려 주세요.', 60, 917, 600, 38, 19, '#fffaf5', { ...centered, ...body }),
+  ], { photo: 'celebration-table.webp' }),
+  poster('garden-vows', '초여름 정원 청첩장', '웨딩·기념일', '#f4f0e4', [
+    { ...block('초대장 본문 바탕', 92, 164, 536, 701, '#fbf8ee', 6), opacity: .88 },
+    copy('상단 문구', '저희 두 사람의 시작에 초대합니다', 112, 194, 496, 64, 25, '#566044', { ...centered, font: serif }),
+    copy('제목', '초여름의 약속', 102, 277, 516, 123, 70, '#37432d', { ...centered, font: serif }),
+    copy('신랑 신부 이름', '지훈  ·  서연', 112, 424, 496, 79, 39, '#37432d', { ...centered, font: serif }),
+    block('구분선', 251, 538, 218, 2, '#8a9474'),
+    copy('예식 일시', '2026년 6월 20일 토요일 오후 2시', 112, 566, 496, 78, 26, '#37432d', centered),
+    copy('예식 장소', '바라봄 가든 1층 야외 정원', 112, 653, 496, 70, 25, '#37432d', centered),
+    copy('초대 인사', '저희의 첫걸음을 함께해 주세요.', 112, 764, 496, 53, 21, '#566044', { ...centered, ...body }),
+  ], { photo: 'poster-botanical-paper.jpg' }),
+  poster('round-floor-guide', '행사장 방향 안내', '공지사항', '#081e34', [
+    block('방향 표지', 51, 54, 405, 612, '#f8d04d', 39),
+    copy('이동 방향', '→', 77, 165, 353, 290, 222, '#081e34', centered),
+    copy('층 안내', '2F', 77, 478, 353, 103, 67, '#081e34', { ...centered, font: display }),
+    copy('제목', '행사장 입구', 508, 135, 450, 115, 76, '#ffec9b', { font: display }),
+    copy('장소', '2층 메인홀  ·  안내 데스크', 513, 292, 451, 69, 30, '#ffffff'),
+    copy('이동 경로', '오른쪽 엘리베이터를 이용해 주세요.\n입구에서 참가 확인을 도와드립니다.', 513, 414, 444, 124, 27, '#e2eaf9', body),
+    block('하단 구분선', 513, 564, 442, 2, '#8195a7'),
+    copy('운영 시간', '데스크 운영  09:00–17:00', 513, 585, 444, 56, 24, '#ffec9b'),
+  ], { preset: 'a4-landscape' }),
+  poster('social-download', '신제품 공개 · 피드', 'SNS 홍보', '#eafed9', [
+    block('프레임 배경', 31, 31, 658, 658, '#192720', 36),
+    disc('강조 원', 430, 101, 208, '#c6f771'),
+    block('날짜 태그', 65, 74, 262, 57, '#c6f771', 28),
+    copy('캠페인 태그', 'NEW DROP  /  06.19', 80, 80, 230, 42, 22, '#192720', centered),
+    copy('제목', '새로운\n컬렉션', 62, 149, 555, 299, 119, '#f5ffeb', { font: display }),
+    copy('설명', '매일 쓰는 물건에 작은 변화를 더했어요.', 68, 487, 578, 58, 26, '#f5ffeb', body),
+    block('하단 버튼 바탕', 65, 570, 407, 73, '#e2fcff', 37),
+    copy('링크 안내', '프로필 링크에서 확인하기  →', 86, 577, 373, 54, 25, '#192720'),
+  ], { preset: 'square' }),
+  poster('photo-club-exhibition', '사진 모임 전시 소식', '사진 콜라주', '#18222d', [
+    { ...block('사진 위 음영', 0, 0, 720, 1018, '#071421'), opacity: .22 },
+    block('상단 바탕', 0, 0, 720, 275, '#19242e'),
+    copy('전시 형식', '동네 사진 모임 첫 정기전', 49, 37, 622, 45, 22, '#e5c49c'),
+    copy('제목', '그날의 장면들', 49, 97, 623, 122, 69, '#fbf3e6', { font: serif }),
+    block('전시 정보 바탕', 0, 729, 720, 289, '#19242e'),
+    copy('관람 기간', '6.13–6.28  /  수–일 12:00–19:00', 49, 763, 622, 61, 29, '#fbf3e6'),
+    copy('전시 장소', '바라봄 커뮤니티 갤러리', 49, 835, 622, 63, 28, '#fbf3e6'),
+    copy('관람료', '무료 관람  ·  월요일과 화요일 휴관', 49, 912, 622, 47, 21, '#e5c49c', body),
+  ], { photo: 'vintage-camera.webp' }),
+  poster('coastal-weekend', '해안길 주말 여행', '여행·관광', '#123447', [
+    block('여행 일정 바탕', 29, 541, 662, 450, '#f4edda', 16),
+    copy('여행 유형', '당일치기  /  해안 산책', 60, 572, 601, 48, 24, '#276069'),
+    copy('제목', '바다 걷는 날', 57, 626, 609, 103, 72, '#15393e', { font: serif }),
+    block('코스 구분선', 60, 750, 601, 2, '#8cadad'),
+    copy('코스', '해변역 → 등대길 → 전망대', 60, 775, 600, 59, 33, '#15393e'),
+    copy('소요 시간', '약 2시간 · 총 4.5km', 60, 841, 601, 51, 24, '#24565c'),
+    copy('출발 안내', '만나는 곳  |  해변역 1번 출구', 60, 914, 601, 49, 22, '#24565c', body),
+  ], { photo: 'coastal-travel.webp' }),
+  poster('citrus-seasonal', '한여름 시트러스', '계절·시즌', '#d5ede7', [
+    block('상단 인쇄 바탕', 31, 31, 658, 293, '#f4ffe0', 9),
+    copy('시즌 소개', 'SUMMER EDITION', 53, 58, 614, 53, 25, '#25624f', centered),
+    copy('제목', '한여름의 맛', 52, 115, 616, 117, 83, '#134d3b', { ...centered, font: serif }),
+    copy('상품 안내', '제철 과일로 만든 시트러스 음료', 51, 239, 618, 55, 25, '#25624f', centered),
+    block('판매 정보 바탕', 40, 879, 640, 101, '#134d3b', 52),
+    copy('판매 안내', '여름 한정  ·  6월부터 매장에서 만나요', 62, 899, 596, 57, 26, '#f4ffe0', centered),
+  ], { photo: 'poster-citrus.jpg' }),
+  poster('moon-holiday', '보름달 명절 인사', '명절·기념일', '#642539', [
+    disc('보름달', 185, 100, 350, '#f8d388'),
+    disc('작은 장식', 548, 126, 29, '#f8d388'),
+    disc('멀리 있는 장식', 119, 356, 17, '#f8d388'),
+    copy('계절 인사', '한가위', 213, 188, 294, 124, 76, '#642539', { ...centered, font: serif }),
+    block('상단 구분선', 55, 473, 610, 2, '#eabf7b'),
+    copy('제목', '마음까지 넉넉한\n한가위 보내세요', 55, 507, 610, 192, 61, '#fff1cf', { ...centered, font: serif }),
+    copy('인사 문구', '소중한 분들과 평안한 연휴를 보내시길 바랍니다.', 58, 742, 604, 73, 25, '#ffe4b7', { ...centered, ...body }),
+    copy('발신자', '바라봄 드림', 56, 895, 608, 61, 30, '#f8d388', { ...centered, font: serif }),
+  ], { gradient: '#361325' }),
+  poster('type-only-message', '타이포그래피 안내문', '심플·미니멀', '#fbfaf7', [
+    block('윗줄', 54, 59, 612, 2, '#21211f'),
+    copy('분류', '공간 이용 안내', 55, 76, 610, 55, 26, '#21211f'),
+    copy('제목', '이곳에서는\n조금 천천히', 50, 193, 619, 284, 104, '#21211f', { font: display }),
+    block('중간 구분선', 54, 521, 612, 4, '#21211f'),
+    copy('본문', '전시장 안에서는 작품에 손을 대지 말아 주세요.\n사진은 플래시 없이 찍을 수 있습니다.', 55, 565, 608, 149, 28, '#333333', body),
+    copy('감사 인사', '모두의 관람을 배려해 주셔서 감사합니다.', 55, 782, 610, 73, 23, '#333333'),
+    block('아랫줄', 54, 938, 612, 2, '#21211f'),
+  ]),
+  poster('private-showroom', '프라이빗 쇼룸 초대장', '프리미엄', '#172522', [
+    block('금박 테두리', 47, 51, 626, 916, '#cda66c'),
+    block('초대장 바탕', 49, 53, 622, 912, '#172522'),
+    copy('초대 종류', 'PRIVATE VIEWING', 61, 130, 598, 65, 25, '#dfbd82', centered),
+    block('상단 선', 246, 220, 228, 2, '#cda66c'),
+    copy('제목', '고요한\n쇼룸의 오후', 55, 282, 610, 246, 77, '#fff4dd', { ...centered, font: serif }),
+    copy('초대 문구', '새 컬렉션을 예약제로 선보입니다.', 57, 557, 606, 75, 28, '#e5ceb1', { ...centered, ...body }),
+    block('일정 선', 270, 668, 180, 2, '#cda66c'),
+    copy('예약 기간', '6월 18–21일  /  14:00–19:00', 55, 700, 610, 73, 28, '#fff4dd', centered),
+    copy('예약 방법', '사전 예약  showroom@example.com', 55, 827, 610, 58, 21, '#dfbd82', centered),
+  ]),
+  poster('film-club-night', '필름 클럽 상영회', '감성·빈티지', '#342a21', [
+    { ...block('사진 위 음영', 0, 0, 720, 1018, '#26140b'), opacity: .24 },
+    block('티켓 왼쪽', 34, 645, 652, 321, '#eed8ae', 12),
+    block('티켓 오른쪽', 507, 645, 179, 321, '#d8ab77', 12),
+    block('티켓 구분선', 507, 661, 2, 286, '#866345'),
+    copy('상영회 이름', 'FILM CLUB', 57, 663, 417, 47, 20, '#6e412a'),
+    copy('제목', '느린 토요일', 54, 711, 434, 103, 62, '#442e25', { font: serif }),
+    copy('상영 장소', '바라봄 소극장  /  자유 좌석', 58, 860, 421, 54, 23, '#442e25'),
+    copy('상영일', '06.20', 521, 718, 151, 86, 45, '#442e25', { ...centered, font: display }),
+    copy('상영 시간', 'SAT 19:30', 517, 811, 155, 51, 23, '#442e25', centered),
+  ], { photo: 'vintage-camera.webp' }),
+]

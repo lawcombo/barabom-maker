@@ -18,21 +18,26 @@ export function PosterTemplateCard({ template, active, onApply }: {
 }) {
   const {background, elements, name, size} = template
   const slotCount = elements.filter((element) => element.kind === 'image' && element.isSlot).length
+  const gradientAngle = 90 + Math.atan2(size.height, size.width) * 180 / Math.PI
+  const paper = background.type === 'gradient'
+    ? `linear-gradient(${gradientAngle}deg, ${background.color}, ${background.secondary})`
+    : background.color
+  const format = size.width === size.height ? '정사각 포스터' : size.width > size.height ? '가로 포스터' : '세로 포스터'
   return (
     <button type="button" className="poster-design-card" aria-pressed={active} onClick={onApply}>
       <span className="poster-design-card-mat" aria-hidden="true">
         <span className="poster-design-art" style={{
           aspectRatio: `${size.width} / ${size.height}`,
-          background: background.color,
+          background: paper,
         }}>
-          <img src={background.imageSrc} alt="" loading="lazy" decoding="async" />
+          {background.type === 'image' && <img src={background.imageSrc} alt="" loading="lazy" decoding="async" style={{ opacity:background.opacity }} />}
           {elements.filter((element) => element.visible).map((element) => {
             const bounds = layerBounds(element, size)
             if (element.kind === 'shape') {
               return <span className="poster-design-layer" key={element.id} style={{
                 ...bounds,
                 background:element.fill,
-                borderRadius:`${100 * element.radius / size.width}cqw`,
+                borderRadius: element.shape === 'circle' ? '50%' : `${100 * element.radius / size.width}cqw`,
               }} />
             }
             if (element.kind === 'text') {
@@ -59,7 +64,7 @@ export function PosterTemplateCard({ template, active, onApply }: {
       </span>
       <span className="poster-design-caption">
         <strong>{name}</strong>
-        <span>{slotCount ? `사진 칸 ${slotCount}개` : size.width > size.height ? '가로 포스터' : '세로 포스터'}</span>
+        <span>{slotCount ? `사진 칸 ${slotCount}개` : format}</span>
       </span>
     </button>
   )
