@@ -1,4 +1,4 @@
-import type { LayoutRect, Orientation } from '../types'
+import type { DesignTemplate, EditorDocument, LayoutRect, Orientation } from '../types'
 
 export const ARTBOARD = {
   portrait: { width: 400, height: 1200 },
@@ -57,4 +57,29 @@ export function layoutLabel(count: number, orientation: Orientation) {
   if (orientation === 'landscape') return `가로 ${count}컷`
   const cols = Math.ceil(Math.sqrt(count))
   return `${cols}열 그리드`
+}
+
+export function getDesignedLayout(document: Pick<EditorDocument, 'cutCount' | 'orientation'>, template: DesignTemplate) {
+  const layout = template.layout
+  return layout?.orientation === document.orientation && layout.slots.length === document.cutCount ? layout : undefined
+}
+
+const scallopRadius = (angle: number) => {
+  const rounded = .5 / Math.pow(Math.abs(Math.cos(angle)) ** 2.7 + Math.abs(Math.sin(angle)) ** 2.7, 1 / 2.7)
+  return rounded - .021 + .021 * Math.cos(14 * angle)
+}
+
+export const scallopOutline = Array.from({length:144}, (_, index) => {
+  const angle = index * Math.PI * 2 / 144
+  const distance = scallopRadius(angle)
+  return [.5 + Math.cos(angle) * distance, .5 + Math.sin(angle) * distance] as const
+})
+
+export function pointInPhotoSlot(rect: LayoutRect, x: number, y: number) {
+  const px = (x - rect.x) / rect.width - .5
+  const py = (y - rect.y) / rect.height - .5
+  if (!rect.mask) return Math.abs(px) <= .5 && Math.abs(py) <= .5
+
+  const radius = rect.mask === 'scallop' ? scallopRadius(Math.atan2(py, px)) : .5
+  return Math.hypot(px, py) <= radius
 }

@@ -1,6 +1,8 @@
 import type { DesignTemplate } from '../types'
+import { illustratedTemplates } from './illustratedTemplates'
 
 export const templates: DesignTemplate[] = [
+  ...illustratedTemplates,
   { id:'white', name:'심플 화이트', category:'심플', colors:['#ffffff','#111827','#f3f4f6'], background:'#ffffff', borderColor:'#111827', borderWidth:2, gap:12, padding:22, radius:2, pattern:'none', topCaption:'BARABOM STUDIO', bottomCaption:'OUR MEMORIES', decoration:'✦' },
   { id:'black', name:'심플 블랙', category:'심플', colors:['#101114','#ffffff','#45474f'], background:'#101114', borderColor:'#ffffff', borderWidth:2, gap:11, padding:20, radius:2, pattern:'grid', topCaption:'MONO MOMENT', bottomCaption:'KEEP THIS NIGHT', decoration:'●' },
   { id:'pink', name:'러블리 하트', category:'파스텔', colors:['#ffe4ee','#a63362','#fff7fa'], background:'#ffe4ee', borderColor:'#ffffff', borderWidth:5, gap:13, padding:24, radius:16, pattern:'hearts', topCaption:'Lovely day', bottomCaption:'오늘도 함께라서 좋아', decoration:'♥' },
@@ -35,4 +37,5 @@ export const templates: DesignTemplate[] = [
   { id:'midnight', name:'미드나잇 네온', category:'프리미엄', colors:['#071a2b','#55d6ff','#bb6cff'], background:'#071a2b', borderColor:'#55d6ff', borderWidth:3, gap:15, padding:26, radius:10, pattern:'neon', topCaption:'MIDNIGHT FRAME', bottomCaption:'CITY LIGHTS · OUR NIGHT', decoration:'☾' },
 ]
 
-export const templateById = (id: string) => templates.find((item) => item.id === id) ?? templates[0]
+const defaultTemplate = templates.find((template) => template.id === 'white')!
+export const templateById = (id: string) => templates.find((item) => item.id === id) ?? defaultTemplate

@@ -86,7 +86,32 @@ export interface EditorDocument {
   }
 }
 
-export interface LayoutRect { id: string; x: number; y: number; width: number; height: number }
+export interface LayoutRect {
+  id: string
+  x: number
+  y: number
+  width: number
+  height: number
+  mask?: 'oval' | 'scallop'
+}
+
+export interface FrameCaption {
+  x: number
+  y: number
+  width: number
+  fontSize: number
+  fontFamily?: string
+  align?: 'left' | 'center'
+}
+
+export interface DesignedFrameLayout {
+  orientation: Orientation
+  label: string
+  slots: LayoutRect[]
+  illustration?: string
+  title: FrameCaption
+  footer: FrameCaption
+}
 
 export interface DesignTemplate {
   id: string
@@ -103,4 +128,5 @@ export interface DesignTemplate {
   topCaption: string
   bottomCaption: string
   decoration: string
+  layout?: DesignedFrameLayout
 }

@@ -1,8 +1,8 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react'
 import Konva from 'konva'
-import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text } from 'react-konva'
+import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva'
 import useImage from 'use-image'
-import { ARTBOARD, getLayoutRects } from '../data/layouts'
+import { ARTBOARD, getDesignedLayout, getLayoutRects, pointInPhotoSlot, scallopOutline } from '../data/layouts'
 import { templateById } from '../data/templates'
 import { PHOTO_ZOOM, zoomFromWheel } from '../lib/photoZoom'
 import type { EditorDocument, LayoutRect, SelectedElement, SlotPhoto, StickerElement, TextElement } from '../types'
@@ -17,6 +17,7 @@ interface Props {
   viewScale: number
   selected: SelectedElement
   showSafeArea: boolean
+  exporting: boolean
   onSelect: (selection: SelectedElement) => void
   onPhotoChange: (index: number, photo: SlotPhoto) => void
   onTextChange: (id: string, patch: Partial<TextElement>) => void
@@ -29,9 +30,25 @@ interface Props {
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 
-function roundedPath(ctx: Konva.Context, rect: LayoutRect, radius: number) {
-  const r = Math.max(0, Math.min(radius, rect.width / 2, rect.height / 2))
+function photoSlotPath(ctx: Konva.Context, rect: LayoutRect, radius: number) {
   ctx.beginPath()
+  if (rect.mask === 'oval') {
+    ctx.ellipse(rect.x + rect.width / 2, rect.y + rect.height / 2, rect.width / 2, rect.height / 2, 0, 0, Math.PI * 2)
+    ctx.closePath()
+    return
+  }
+  if (rect.mask === 'scallop') {
+    scallopOutline.forEach(([x, y], index) => {
+      const pointX = rect.x + x * rect.width
+      const pointY = rect.y + y * rect.height
+      if (index === 0) ctx.moveTo(pointX, pointY)
+      else ctx.lineTo(pointX, pointY)
+    })
+    ctx.closePath()
+    return
+  }
+
+  const r = Math.max(0, Math.min(radius, rect.width / 2, rect.height / 2))
   ctx.moveTo(rect.x + r, rect.y)
   ctx.lineTo(rect.x + rect.width - r, rect.y)
   ctx.quadraticCurveTo(rect.x + rect.width, rect.y, rect.x + rect.width, rect.y + r)
@@ -42,6 +59,13 @@ function roundedPath(ctx: Konva.Context, rect: LayoutRect, radius: number) {
   ctx.lineTo(rect.x, rect.y + r)
   ctx.quadraticCurveTo(rect.x, rect.y, rect.x + r, rect.y)
   ctx.closePath()
+}
+
+function SlotSurface({rect, radius, ...props}: {rect: LayoutRect; radius: number} & Konva.ShapeConfig) {
+  return <Shape {...props} sceneFunc={(ctx, shape) => {
+    photoSlotPath(ctx, rect, radius)
+    ctx.fillStrokeShape(shape)
+  }} />
 }
 
 function PhotoNode({ photo, rect, radius, selected, onSelect, onChange }: {
@@ -87,7 +111,7 @@ function PhotoNode({ photo, rect, radius, selected, onSelect, onChange }: {
   }
 
   return (
-    <Group clipFunc={(ctx) => roundedPath(ctx, rect, radius)}>
+    <Group clipFunc={(ctx) => photoSlotPath(ctx, rect, radius)}>
       <KonvaImage
         ref={imageRef}
         name="photo-node"
@@ -121,7 +145,7 @@ function PhotoNode({ photo, rect, radius, selected, onSelect, onChange }: {
           })
         }}
       />
-      {selected && <Rect {...rect} stroke="#7c3aed" strokeWidth={4} dash={[10, 6]} listening={false} />}
+      {selected && <SlotSurface rect={rect} radius={radius} stroke="#7c3aed" strokeWidth={4} dash={[10, 6]} listening={false} />}
     </Group>
   )
 }
@@ -218,15 +242,23 @@ function StickerNode({ sticker, selected, onSelect, onChange, onDelete }: {
 }
 
 export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage({
-  document, viewScale, selected, showSafeArea, onSelect, onPhotoChange, onTextChange,
+  document, viewScale, selected, showSafeArea, exporting, onSelect, onPhotoChange, onTextChange,
   onTextDelete, onStickerChange, onStickerDelete, onRequestUpload, onFilesDropped,
 }, ref) {
   const stageRef = useRef<Konva.Stage>(null)
   const hoverIndex = useRef<number | null>(null)
   const pinch = useRef<{ distance: number; index: number } | null>(null)
   const artboard = ARTBOARD[document.orientation]
-  const rects = useMemo(() => getLayoutRects(document.cutCount, document.orientation, document.frame.padding, document.frame.gap), [document.cutCount, document.orientation, document.frame.padding, document.frame.gap])
   const template = templateById(document.templateId)
+  const layout = getDesignedLayout(document, template)
+  const rects = useMemo(() => layout?.slots ?? getLayoutRects(document.cutCount, document.orientation, document.frame.padding, document.frame.gap),
+    [layout, document.cutCount, document.orientation, document.frame.padding, document.frame.gap])
+  const [artwork] = useImage(document.frame.showDecorations ? layout?.illustration ?? '' : '')
+  const title = layout?.title ?? {
+    x:20, y:18, width:artboard.width - 40, fontFamily:'Noto Sans KR',
+    fontSize:document.orientation === 'landscape' ? 18 : 15,
+  }
+  const footer = layout?.footer ?? {x:24, y:artboard.height-48, width:artboard.width-48, fontFamily:'Gaegu', fontSize:18}
 
   useImperativeHandle(ref, () => ({
     toDataURL: (mimeType, pixelRatio, quality = .95) => stageRef.current?.toDataURL({ mimeType, pixelRatio, quality }) || '',
@@ -260,7 +292,7 @@ export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage(
         const bounds = event.currentTarget.getBoundingClientRect()
         const x = (event.clientX - bounds.left) / viewScale
         const y = (event.clientY - bounds.top) / viewScale
-        const index = rects.findIndex((rect) => x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height)
+        const index = rects.findIndex((rect) => pointInPhotoSlot(rect, x, y))
         if (index >= 0) onFilesDropped(Array.from(event.dataTransfer.files), index)
       }}
     >
@@ -295,25 +327,33 @@ export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage(
       >
         <Layer scaleX={viewScale} scaleY={viewScale}>
           <Rect width={artboard.width} height={artboard.height} fill={document.frame.background} listening={false}/>
-          <Pattern document={document}/>
-          <Text text={document.frame.topCaption} x={20} y={18} width={artboard.width - 40} align="center" fontFamily="Noto Sans KR" fontStyle="bold" fontSize={document.orientation === 'landscape' ? 18 : 15} letterSpacing={3} fill={template.colors[1]} listening={false}/>
-          {document.frame.showDecorations && <><Text text={template.decoration} x={20} y={18} fontSize={22} fill={template.colors[1]} listening={false}/><Text text={template.decoration} x={artboard.width - 42} y={18} fontSize={22} fill={template.colors[1]} listening={false}/></>}
+          {artwork && <KonvaImage image={artwork} width={artboard.width} height={artboard.height} listening={false} />}
+          {!layout && <Pattern document={document}/>}
+          <Text {...title} text={document.frame.topCaption} align={title.align ?? 'center'} fontStyle="bold"
+            lineHeight={1.12} letterSpacing={layout ? 0 : 3} fill={template.colors[1]} listening={false}/>
+          {!layout && document.frame.showDecorations && <><Text text={template.decoration} x={20} y={18} fontSize={22} fill={template.colors[1]} listening={false}/><Text text={template.decoration} x={artboard.width - 42} y={18} fontSize={22} fill={template.colors[1]} listening={false}/></>}
           {rects.map((rect, index) => {
             const photo = document.photos[index]
             return <Group key={rect.id} onMouseEnter={() => { hoverIndex.current = index }} onMouseLeave={() => { if (hoverIndex.current === index) hoverIndex.current = null }} onTouchStart={() => { hoverIndex.current = index }}>
-              <Rect {...rect} fill="#e5e7eb" cornerRadius={document.frame.radius} shadowColor="#111827" shadowOpacity={.10} shadowBlur={8}/>
+              <SlotSurface rect={rect} radius={document.frame.radius} fill={layout ? '#fffdf4' : photo ? '#e5e7eb' : '#f8fafc'}
+                onClick={photo || exporting ? undefined : () => onRequestUpload(index)}
+                onTap={photo || exporting ? undefined : () => onRequestUpload(index)}
+                onMouseEnter={photo || exporting ? undefined : () => stageRef.current?.container().style.setProperty('cursor', 'pointer')}
+                onMouseLeave={photo || exporting ? undefined : () => stageRef.current?.container().style.removeProperty('cursor')} />
               {photo ? <PhotoNode photo={photo} rect={rect} radius={document.frame.radius} selected={selected?.type === 'slot' && selected.id === String(index)} onSelect={() => onSelect({ type: 'slot', id: String(index) })} onChange={(next) => onPhotoChange(index, next)}/>
-                : <Group
-                  onClick={() => onRequestUpload(index)}
-                  onTap={() => onRequestUpload(index)}
-                  onMouseEnter={() => { stageRef.current?.container().style.setProperty('cursor', 'pointer') }}
-                  onMouseLeave={() => { stageRef.current?.container().style.removeProperty('cursor') }}
-                ><Rect {...rect} fill="#f8fafc" cornerRadius={document.frame.radius} stroke={document.frame.borderColor} strokeWidth={1} dash={[8, 8]}/><Text x={rect.x} y={rect.y + rect.height / 2 - 28} width={rect.width} text="＋" align="center" fontSize={28} fill="#94a3b8"/><Text x={rect.x} y={rect.y + rect.height / 2 + 8} width={rect.width} text="사진 넣기" align="center" fontSize={13} fill="#64748b"/></Group>}
-              <Rect {...rect} cornerRadius={document.frame.radius} stroke={document.frame.borderColor} strokeWidth={document.frame.borderWidth} listening={false}/>
+                : !exporting && <>
+                  <Text x={rect.x} y={rect.y + rect.height / 2 - 28} width={rect.width} text="＋" align="center" fontSize={28} fill="#94a3b8" listening={false}/>
+                  <Text x={rect.x} y={rect.y + rect.height / 2 + 8} width={rect.width} text="사진 넣기" align="center" fontSize={13} fill="#64748b" listening={false}/>
+                </>}
+              {document.frame.borderWidth > 0 && <SlotSurface rect={rect} radius={document.frame.radius} stroke={document.frame.borderColor}
+                strokeWidth={document.frame.borderWidth} listening={false}/>}
             </Group>
           })}
-          <Text text={document.frame.bottomCaption} x={24} y={artboard.height - 48} width={artboard.width - 48} align="center" fontFamily="Gaegu" fontSize={18} fill={template.colors[1]} listening={false}/>
-          {document.frame.showDate && <Text text={new Intl.DateTimeFormat('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date())} x={24} y={artboard.height - 27} width={artboard.width - 48} align="center" fontFamily="Noto Sans KR" fontSize={9} letterSpacing={1} fill={template.colors[1]} opacity={.75} listening={false}/>} 
+          <Text {...footer} text={document.frame.bottomCaption} align={footer.align ?? 'center'}
+            fontStyle={layout ? 'bold' : 'normal'} fill={template.colors[1]} listening={false}/>
+          {document.frame.showDate && <Text text={new Intl.DateTimeFormat('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date())}
+            x={footer.x} y={Math.min(artboard.height-18,footer.y+footer.fontSize+3)} width={footer.width} align={footer.align ?? 'center'}
+            fontFamily="Noto Sans KR" fontSize={layout ? 13 : 9} letterSpacing={1} fill={template.colors[1]} opacity={.75} listening={false}/>}
           {document.texts.map((item) => <Group
             key={item.id}
             x={item.x}

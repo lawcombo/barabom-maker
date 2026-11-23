@@ -1,5 +1,6 @@
 import type { DesignTemplate, EditorDocument, FrameSettings, SlotPhoto } from '../types'
 import { templateById } from '../data/templates'
+import { ARTBOARD } from '../data/layouts'
 
 export function frameFromTemplate(template: DesignTemplate): FrameSettings {
   return {
@@ -11,9 +12,34 @@ export function frameFromTemplate(template: DesignTemplate): FrameSettings {
     radius: template.radius,
     pattern: template.pattern,
     showDecorations: true,
-    showDate: true,
+    showDate: !template.layout,
     topCaption: template.topCaption,
     bottomCaption: template.bottomCaption,
+  }
+}
+
+export function applyDesignTemplate(document: EditorDocument, template: DesignTemplate): EditorDocument {
+  const next = { ...document, templateId:template.id, frame:frameFromTemplate(template) }
+  const layout = template.layout
+  if (!layout) return next
+
+  const before = ARTBOARD[document.orientation]
+  const after = ARTBOARD[layout.orientation]
+  const scaleX = after.width / before.width
+  const scaleY = after.height / before.height
+  const scale = Math.min(scaleX, scaleY)
+  const cutCount = layout.slots.length
+
+  return {
+    ...next,
+    cutCount,
+    orientation:layout.orientation,
+    photos:Array.from({length:Math.max(cutCount,document.photos.length)}, (_, index) => document.photos[index] ?? null),
+    texts:document.texts.map((text) => ({...text, x:text.x*scaleX, y:text.y*scaleY, width:text.width*scaleX, fontSize:text.fontSize*scale})),
+    stickers:document.stickers.map((sticker) => ({...sticker, x:sticker.x*scaleX, y:sticker.y*scaleY, size:sticker.size*scale})),
+    output:layout.orientation === 'grid'
+      ? {...document.output, preset:'custom', widthMm:80, heightMm:100}
+      : {...document.output, preset:'strip50x150', widthMm:50, heightMm:150},
   }
 }
 
