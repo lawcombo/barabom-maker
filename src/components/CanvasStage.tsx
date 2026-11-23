@@ -279,7 +279,12 @@ export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage(
             return <Group key={rect.id} onMouseEnter={() => { hoverIndex.current = index }} onMouseLeave={() => { if (hoverIndex.current === index) hoverIndex.current = null }} onTouchStart={() => { hoverIndex.current = index }}>
               <Rect {...rect} fill="#e5e7eb" cornerRadius={document.frame.radius} shadowColor="#111827" shadowOpacity={.10} shadowBlur={8}/>
               {photo ? <PhotoNode photo={photo} rect={rect} radius={document.frame.radius} selected={selected?.type === 'slot' && selected.id === String(index)} onSelect={() => onSelect({ type: 'slot', id: String(index) })} onChange={(next) => onPhotoChange(index, next)}/>
-                : <Group onClick={() => onRequestUpload(index)} onTap={() => onRequestUpload(index)}><Rect {...rect} fill="#f8fafc" cornerRadius={document.frame.radius} stroke={document.frame.borderColor} strokeWidth={1} dash={[8, 8]}/><Text x={rect.x} y={rect.y + rect.height / 2 - 28} width={rect.width} text="＋" align="center" fontSize={28} fill="#94a3b8"/><Text x={rect.x} y={rect.y + rect.height / 2 + 8} width={rect.width} text="사진 넣기" align="center" fontSize={13} fill="#64748b"/></Group>}
+                : <Group
+                  onClick={() => onRequestUpload(index)}
+                  onTap={() => onRequestUpload(index)}
+                  onMouseEnter={() => { stageRef.current?.container().style.setProperty('cursor', 'pointer') }}
+                  onMouseLeave={() => { stageRef.current?.container().style.removeProperty('cursor') }}
+                ><Rect {...rect} fill="#f8fafc" cornerRadius={document.frame.radius} stroke={document.frame.borderColor} strokeWidth={1} dash={[8, 8]}/><Text x={rect.x} y={rect.y + rect.height / 2 - 28} width={rect.width} text="＋" align="center" fontSize={28} fill="#94a3b8"/><Text x={rect.x} y={rect.y + rect.height / 2 + 8} width={rect.width} text="사진 넣기" align="center" fontSize={13} fill="#64748b"/></Group>}
               <Rect {...rect} cornerRadius={document.frame.radius} stroke={document.frame.borderColor} strokeWidth={document.frame.borderWidth} listening={false}/>
             </Group>
           })}
