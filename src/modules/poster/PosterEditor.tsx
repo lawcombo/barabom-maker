@@ -40,7 +40,7 @@ function newText(document:PosterDocument,style:'title'|'subtitle'|'body'|'sale'=
   return {...nowBase('text',style==='title'?'제목':style==='subtitle'?'부제목':style==='body'?'본문':'강조 문구',document.size.width/2,document.size.height/2,presets.width,presets.height),text:presets.text,fontFamily:presets.font,fontSize:presets.size,fontStyle:'bold',fill:presets.fill,align:'center',letterSpacing:0,lineHeight:1.2,stroke:'transparent',strokeWidth:0,shadowColor:'#000000',shadowBlur:0,background:style==='sale'?'#ef4444':'transparent',underline:false} as PosterTextElement
 }
 
-export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDocument;onExit:()=>void}) {
+export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDocument;onExit:(hasUnsavedChanges:boolean)=>void}) {
   const [document,setDocument]=useState<PosterDocument>(()=>initialDocument??createBlankPoster())
   const [selectedId,setSelectedId]=useState<string|null>(null)
   const [tab,setTab]=useState<PosterTab>('templates')
@@ -73,6 +73,7 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
   const templateInputRef=useRef<HTMLInputElement>(null)
   const uploadTarget=useRef<string|null>(null)
   const startingDocument=useRef(document)
+  const blankDocument=useRef(initialDocument ? null : document)
 
   const selected=useMemo(()=>document.elements.find((item)=>item.id===selectedId)??null,[document.elements,selectedId])
   const visibleTemplates = useMemo(() => posterTemplates
@@ -209,8 +210,12 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
     setStatus('')
   }
   const newProject=()=>{
-    if(window.confirm('새 포스터를 시작할까요? 저장하지 않은 변경 사항은 사라집니다.'))openProject(createBlankPoster(),false)
+    if(!window.confirm('새 포스터를 시작할까요? 저장하지 않은 변경 사항은 사라집니다.'))return
+    const next=createBlankPoster()
+    blankDocument.current=next
+    openProject(next,false)
   }
+  const goHome=()=>onExit(document !== (savedDocument ?? blankDocument.current) || canvasTextEdit.hasDraftChanges())
   const capture=async(format:'png'|'jpeg'='png',pixelRatio?:number)=>{
     await window.document.fonts?.ready;setExporting(true);await new Promise((resolve)=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))
     const {width, outputWidth, outputHeight} = document.size
@@ -299,9 +304,9 @@ export function PosterEditor({initialDocument,onExit}:{initialDocument?:PosterDo
     <input ref={projectInputRef} hidden type="file" accept=".json,.barabom-poster.json" onChange={async(event)=>{const file=event.target.files?.[0];if(file){setMobilePanel(false);try{openProject(await importPosterProject(file),false)}catch{setStatus('올바른 포스터 파일이 아니에요')}}event.target.value=''}}/>
     <input ref={templateInputRef} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={(event)=>{const file=event.target.files?.[0];if(file){setMobilePanel(false);void uploadTemplate(file)}event.target.value=''}}/>
     <header className="poster-header studio-editor-header">
-      <button className="poster-header-brand" onClick={onExit}><img src={`${import.meta.env.BASE_URL}barabom-mark.svg`} alt=""/><div><strong>너를, 바라봄</strong><span>POSTER STUDIO</span></div></button>
+      <button className="poster-header-brand" onClick={goHome} aria-label="너를, 바라봄 시작 화면으로"><img src={`${import.meta.env.BASE_URL}barabom-mark.svg`} alt=""/><div><strong>너를, 바라봄</strong><span>POSTER STUDIO</span></div></button>
       <div className="poster-header-name"><input aria-label="프로젝트 이름" value={document.name} onChange={(event)=>commit((d)=>({...d,name:event.target.value}),false)}/><span className="studio-save-status" role="status">{saving ? '저장 중…' : status || (document === savedDocument ? '저장 완료' : '저장 필요')}</span></div>
-      <StudioHeaderActions onBack={onExit} onNew={newProject} onSave={() => void saveCurrentProject()} saving={saving}
+      <StudioHeaderActions onHome={goHome} onNew={newProject} onSave={() => void saveCurrentProject()} saving={saving}
         onUndo={undo} onRedo={redo} canUndo={history.length > 0} canRedo={future.length > 0}
         onPreview={() => void showPreview()} onDownload={() => setDownloadOpen(true)} />
     </header>

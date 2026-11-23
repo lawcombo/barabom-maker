@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useSyncExternalStore, useState, type ReactNode } from 'react'
+import { useLayoutEffect, useRef, useSyncExternalStore, useState, type ReactNode, type RefObject } from 'react'
 import { createPortal, flushSync } from 'react-dom'
 import { Check, SlidersHorizontal } from 'lucide-react'
 import type Konva from 'konva'
@@ -41,6 +41,7 @@ type TextEdit = {
 export function useCanvasTextEdit() {
   const [edit, setEdit] = useState<TextEdit | null>(null)
   const openCount = useRef(0)
+  const fieldRef = useRef<HTMLTextAreaElement>(null)
   const enabled = useSyncExternalStore(listenForCompactCanvas, supportsInlineEditing)
 
   const open = (value: string, node: Konva.Node, onCommit: TextEdit['onCommit']) => {
@@ -54,7 +55,8 @@ export function useCanvasTextEdit() {
   return {
     enabled,
     open,
-    editor: edit && <CanvasTextEditor key={edit.key} edit={edit} onClose={() => setEdit(null)} />,
+    hasDraftChanges: () => Boolean(edit && fieldRef.current && fieldRef.current.value !== edit.value),
+    editor: edit && <CanvasTextEditor key={edit.key} edit={edit} fieldRef={fieldRef} onClose={() => setEdit(null)} />,
   }
 }
 
@@ -72,11 +74,14 @@ function positionEditor(anchor: TextAnchor, height: number) {
   }
 }
 
-function CanvasTextEditor({ edit, onClose }: { edit: TextEdit; onClose: () => void }) {
+function CanvasTextEditor({ edit, fieldRef, onClose }: {
+  edit: TextEdit
+  fieldRef: RefObject<HTMLTextAreaElement>
+  onClose: () => void
+}) {
   const [value, setValue] = useState(edit.value)
   const [position, setPosition] = useState(() => positionEditor(edit.anchor, 116))
   const formRef = useRef<HTMLFormElement>(null)
-  const fieldRef = useRef<HTMLTextAreaElement>(null)
   const closed = useRef(false)
   const finish = (save: boolean) => {
     if (closed.current) return
@@ -99,7 +104,7 @@ function CanvasTextEditor({ edit, onClose }: { edit: TextEdit; onClose: () => vo
       window.visualViewport?.removeEventListener('resize', resize)
       window.visualViewport?.removeEventListener('scroll', resize)
     }
-  }, [edit])
+  }, [edit, fieldRef])
 
   return createPortal(
     <form ref={formRef} className="studio-inline-editor" style={position}

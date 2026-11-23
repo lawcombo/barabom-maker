@@ -1,9 +1,9 @@
-import { ArrowLeft, Download, Eye, MoreHorizontal, Plus, Redo2, Save, Undo2 } from 'lucide-react'
+import { Download, Eye, House, MoreHorizontal, Plus, Redo2, Save, Undo2 } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import './studio-header.css'
 
 type StudioHeaderActionsProps = {
-  onBack: () => void
+  onHome: () => void
   onNew: () => void
   onSave: () => void
   onUndo: () => void
@@ -27,7 +27,7 @@ export function StudioHeaderActions(props: StudioHeaderActionsProps) {
   }, [])
 
   const actions = [
-    { label:'메인', icon:ArrowLeft, onClick:props.onBack },
+    { label:'홈으로', icon:House, onClick:props.onHome },
     { label:'새 프로젝트', icon:Plus, onClick:props.onNew },
     { label:'저장', icon:Save, onClick:props.onSave, disabled:props.saving, primary:true },
     { label:'실행 취소', icon:Undo2, onClick:props.onUndo, disabled:!props.canUndo },

@@ -63,7 +63,7 @@ function IconButton({ label, disabled, onClick, children }: { label:string; disa
   return <button type="button" aria-label={label} title={label} disabled={disabled} onClick={onClick} className="icon-btn">{children}</button>
 }
 
-export function Editor({ onExit }: { onExit: () => void }) {
+export function Editor({ onExit }: { onExit: (hasUnsavedChanges: boolean) => void }) {
   const [document, setDocument] = useState<EditorDocument>(() => createDocument())
   const [undoStack, setUndoStack] = useState<EditorDocument[]>([])
   const [redoStack, setRedoStack] = useState<EditorDocument[]>([])
@@ -92,6 +92,7 @@ export function Editor({ onExit }: { onExit: () => void }) {
   const stickerInputRef = useRef<HTMLInputElement>(null)
   const uploadTarget = useRef<number | null>(null)
   const initialDocument = useRef(document)
+  const blankDocument = useRef(document)
 
   const commit = useCallback((updater: (current: EditorDocument) => EditorDocument, history = true) => {
     setStatus('')
@@ -308,8 +309,12 @@ export function Editor({ onExit }: { onExit: () => void }) {
 
   const startNewProject = () => {
     if (!window.confirm('새 프로젝트를 시작할까요? 저장하지 않은 변경 사항은 사라집니다.')) return
-    openProject(createDocument(), false)
+    const next = createDocument()
+    blankDocument.current = next
+    openProject(next, false)
   }
+
+  const goHome = () => onExit(document !== (savedDocument ?? blankDocument.current) || canvasTextEdit.hasDraftChanges())
 
   const showPreview = async () => {
     await window.document.fonts?.ready
@@ -431,9 +436,9 @@ export function Editor({ onExit }: { onExit: () => void }) {
     <input ref={projectInputRef} hidden type="file" accept=".json,.photostudio.json" onChange={async e=>{const file=e.target.files?.[0];if(file){setMobilePanel(false);try{openProject(await importProjectFile(file),false)}catch{setStatus('올바른 프로젝트 파일이 아니에요')}}e.target.value=''}}/>
     <input ref={stickerInputRef} hidden type="file" accept="image/png,image/webp" onChange={async e=>{const file=e.target.files?.[0];if(file)addSticker(await readImageFile(file),'image');e.target.value=''}}/>
     <header className="editor-header studio-editor-header">
-      <button className="flex shrink-0 items-center gap-2.5 text-left" onClick={onExit} aria-label="너를, 바라봄 시작 화면으로"><img src={`${import.meta.env.BASE_URL}barabom-mark.svg`} alt="" className="size-9"/><span className="hidden sm:block"><strong className="block font-['Noto_Serif_KR'] text-sm font-semibold leading-tight tracking-[-.035em]">너를, 바라봄</strong><small className="mt-0.5 block text-[8px] font-semibold tracking-[.18em] text-[#8a6f47]">BARABOM STUDIO</small></span></button>
+      <button className="flex shrink-0 items-center gap-2.5 text-left" onClick={goHome} aria-label="너를, 바라봄 시작 화면으로"><img src={`${import.meta.env.BASE_URL}barabom-mark.svg`} alt="" className="size-9"/><span className="hidden sm:block"><strong className="block font-['Noto_Serif_KR'] text-sm font-semibold leading-tight tracking-[-.035em]">너를, 바라봄</strong><small className="mt-0.5 block text-[8px] font-semibold tracking-[.18em] text-[#8a6f47]">BARABOM STUDIO</small></span></button>
       <div className="flex min-w-0 flex-1 items-center justify-center gap-2"><input aria-label="프로젝트 이름" className="project-name" value={document.name} onChange={e=>commit(d=>({...d,name:e.target.value}),false)}/><span className="studio-save-status" role="status">{saving ? '저장 중…' : status || (document === savedDocument ? '저장 완료' : '저장 필요')}</span></div>
-      <StudioHeaderActions onBack={onExit} onNew={startNewProject} onSave={() => void saveCurrentProject()} saving={saving}
+      <StudioHeaderActions onHome={goHome} onNew={startNewProject} onSave={() => void saveCurrentProject()} saving={saving}
         onUndo={undo} onRedo={redo} canUndo={undoStack.length > 0} canRedo={redoStack.length > 0}
         onPreview={() => void showPreview()} onDownload={() => setDownloadOpen(true)} />
     </header>
