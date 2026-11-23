@@ -285,17 +285,25 @@ export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage(
           })}
           <Text text={document.frame.bottomCaption} x={24} y={artboard.height - 48} width={artboard.width - 48} align="center" fontFamily="Gaegu" fontSize={18} fill={template.colors[1]} listening={false}/>
           {document.frame.showDate && <Text text={new Intl.DateTimeFormat('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date())} x={24} y={artboard.height - 27} width={artboard.width - 48} align="center" fontFamily="Noto Sans KR" fontSize={9} letterSpacing={1} fill={template.colors[1]} opacity={.75} listening={false}/>} 
-          {document.texts.map((item) => <Group key={item.id}>
-            {item.background !== 'transparent' && <Rect x={item.x - 6} y={item.y - 4} width={item.width + 12} height={item.fontSize * item.lineHeight + 8} fill={item.background} cornerRadius={4}/>} 
+          {document.texts.map((item) => <Group
+            key={item.id}
+            x={item.x}
+            y={item.y}
+            rotation={item.rotation}
+            draggable
+            onClick={() => onSelect({ type:'text', id:item.id })}
+            onTap={() => onSelect({ type:'text', id:item.id })}
+            onDragStart={() => onSelect({ type:'text', id:item.id })}
+            onDragEnd={(event) => onTextChange(item.id, { x:event.target.x(), y:event.target.y() })}
+          >
+            {item.background !== 'transparent' && <Rect x={-6} y={-4} width={item.width + 12} height={item.fontSize * item.lineHeight + 8} fill={item.background} cornerRadius={4}/>}
             <Text
-              text={item.text} x={item.x} y={item.y} width={item.width} fontFamily={item.fontFamily} fontSize={item.fontSize}
+              text={item.text} x={0} y={0} width={item.width} fontFamily={item.fontFamily} fontSize={item.fontSize}
               fontStyle={item.fontStyle} fill={item.fill} align={item.align} letterSpacing={item.letterSpacing} lineHeight={item.lineHeight}
-              rotation={item.rotation} opacity={item.opacity} stroke={item.stroke} strokeWidth={item.strokeWidth}
-              shadowColor={item.shadowColor} shadowBlur={item.shadowBlur} draggable
-              onClick={() => onSelect({ type:'text', id:item.id })} onTap={() => onSelect({ type:'text', id:item.id })}
-              onDragEnd={(event) => onTextChange(item.id, { x:event.target.x(), y:event.target.y() })}
+              opacity={item.opacity} stroke={item.stroke} strokeWidth={item.strokeWidth}
+              shadowColor={item.shadowColor} shadowBlur={item.shadowBlur}
             />
-            {selected?.type === 'text' && selected.id === item.id && <Rect x={item.x - 6} y={item.y - 5} width={item.width + 12} height={item.fontSize * item.lineHeight + 10} rotation={item.rotation} stroke="#7c3aed" dash={[7,5]} listening={false}/>} 
+            {selected?.type === 'text' && selected.id === item.id && <Rect x={-6} y={-5} width={item.width + 12} height={item.fontSize * item.lineHeight + 10} stroke="#7c3aed" dash={[7,5]} listening={false}/>}
           </Group>)}
           {document.stickers.map((sticker) => <StickerNode key={sticker.id} sticker={sticker} selected={selected?.type === 'sticker' && selected.id === sticker.id} onSelect={() => onSelect({ type:'sticker', id:sticker.id })} onChange={(patch) => onStickerChange(sticker.id, patch)}/>)}
           {showSafeArea && <Rect x={18} y={18} width={artboard.width - 36} height={artboard.height - 36} stroke="#ef4444" strokeWidth={1} dash={[8,6]} opacity={.75} listening={false}/>} 

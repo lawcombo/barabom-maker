@@ -1,7 +1,7 @@
 import type { DesignTemplate } from '../types'
 
 export const templates: DesignTemplate[] = [
-  { id:'white', name:'심플 화이트', category:'심플', colors:['#ffffff','#111827','#f3f4f6'], background:'#ffffff', borderColor:'#111827', borderWidth:2, gap:12, padding:22, radius:2, pattern:'none', topCaption:'PHOTO STUDIO', bottomCaption:'OUR MEMORIES', decoration:'✦' },
+  { id:'white', name:'심플 화이트', category:'심플', colors:['#ffffff','#111827','#f3f4f6'], background:'#ffffff', borderColor:'#111827', borderWidth:2, gap:12, padding:22, radius:2, pattern:'none', topCaption:'BARABOM STUDIO', bottomCaption:'OUR MEMORIES', decoration:'✦' },
   { id:'black', name:'심플 블랙', category:'심플', colors:['#101114','#ffffff','#45474f'], background:'#101114', borderColor:'#ffffff', borderWidth:2, gap:11, padding:20, radius:2, pattern:'grid', topCaption:'MONO MOMENT', bottomCaption:'KEEP THIS NIGHT', decoration:'●' },
   { id:'pink', name:'러블리 하트', category:'파스텔', colors:['#ffe4ee','#a63362','#fff7fa'], background:'#ffe4ee', borderColor:'#ffffff', borderWidth:5, gap:13, padding:24, radius:16, pattern:'hearts', topCaption:'Lovely day', bottomCaption:'오늘도 함께라서 좋아', decoration:'♥' },
   { id:'blue', name:'파스텔 블루', category:'파스텔', colors:['#dff2ff','#2563a5','#ffffff'], background:'#dff2ff', borderColor:'#ffffff', borderWidth:5, gap:14, padding:24, radius:15, pattern:'waves', topCaption:'BLUE DAY', bottomCaption:'맑고 선명한 우리', decoration:'☁' },

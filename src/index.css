@@ -61,6 +61,10 @@ button { -webkit-tap-highlight-color: transparent; }
   .photo-tile span { @apply absolute bottom-1 right-1 grid size-5 place-items-center rounded-full bg-black/60 text-[9px] text-white; }
   .chip { @apply rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-medium text-slate-600 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700; }
   .sticker-btn { @apply grid aspect-square place-items-center rounded-xl border border-slate-200 bg-white text-2xl transition hover:scale-105 hover:border-violet-300 hover:bg-violet-50; }
+  .font-choice { @apply flex min-h-16 flex-col justify-center rounded-xl border border-slate-200 bg-white px-2 py-2 text-center transition hover:border-violet-300 hover:bg-violet-50; }
+  .font-choice.active { @apply border-violet-600 bg-violet-50 text-violet-800 ring-1 ring-violet-600; }
+  .font-choice strong { @apply block truncate text-sm font-normal; }
+  .font-choice small { @apply mt-1 block text-[10px] font-sans text-slate-400; }
   .project-row { @apply flex items-center rounded-xl border border-slate-200 p-2; }
   .project-row > button:first-child { @apply min-w-0 flex-1 px-2 text-left; }
   .project-row strong { @apply block truncate text-xs; }

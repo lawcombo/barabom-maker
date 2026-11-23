@@ -1,4 +1,4 @@
-name: Deploy PHOTO STUDIO to GitHub Pages
+name: Deploy BARABOM STUDIO to GitHub Pages
 
 on:
   push:
