@@ -1,10 +1,10 @@
-import { ArrowUpRight, Images, Sparkles, WandSparkles } from 'lucide-react'
+import { ArrowUpRight, Images, WandSparkles } from 'lucide-react'
 
 export function Landing({ onStart }: { onStart: () => void }) {
   return (
     <main className="min-h-screen overflow-hidden bg-[#f8f7fb] text-slate-950">
       <header className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-10">
-        <div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-2xl bg-slate-950 text-white"><Sparkles size={19}/></div><div><p className="text-sm font-bold tracking-[.18em]">BARABOM STUDIO</p><p className="text-xs text-slate-500">memories, made yours</p></div></div>
+        <div className="flex items-center gap-3"><img src={`${import.meta.env.BASE_URL}barabom-mark.svg`} alt="너를, 바라봄 로고" className="size-11"/><div><p className="font-['Gowun_Batang'] text-[17px] font-bold leading-tight tracking-[-.04em]">너를, 바라봄</p><p className="mt-0.5 text-[10px] font-bold tracking-[.2em] text-slate-500">BARABOM STUDIO</p></div></div>
         <div className="hidden rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 sm:block">사진은 브라우저 안에서만 처리돼요</div>
       </header>
       <section className="mx-auto grid max-w-7xl items-center gap-14 px-6 pb-20 pt-10 lg:grid-cols-[.9fr_1.1fr] lg:px-10 lg:pt-20">

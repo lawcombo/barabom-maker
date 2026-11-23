@@ -21,6 +21,7 @@ interface Props {
   onTextChange: (id: string, patch: Partial<TextElement>) => void
   onTextDelete: (id: string) => void
   onStickerChange: (id: string, patch: Partial<StickerElement>) => void
+  onStickerDelete: (id: string) => void
   onRequestUpload: (index: number) => void
   onFilesDropped: (files: File[], index: number) => void
 }
@@ -176,27 +177,47 @@ function Pattern({ document }: { document: EditorDocument }) {
   return <Group opacity={0.13} listening={false}>{Array.from({ length: Math.ceil(height / 55) }, (_, i) => <Line key={i} points={[0, i * 55 + 15, width * .25, i * 55, width * .5, i * 55 + 15, width * .75, i * 55 + 30, width, i * 55 + 15]} stroke={accent} strokeWidth={4} tension={0.35}/>)}</Group>
 }
 
-function StickerNode({ sticker, selected, onSelect, onChange }: {
+function StickerNode({ sticker, selected, onSelect, onChange, onDelete }: {
   sticker: StickerElement
   selected: boolean
   onSelect: () => void
   onChange: (patch: Partial<StickerElement>) => void
+  onDelete: () => void
 }) {
   const [image] = useImage(sticker.kind === 'image' ? sticker.value : '')
-  const common = {
-    x: sticker.x, y: sticker.y, rotation: sticker.rotation, opacity: sticker.opacity,
-    draggable: true, onClick: onSelect, onTap: onSelect,
-    onDragEnd: (event: Konva.KonvaEventObject<DragEvent>) => onChange({ x: event.target.x(), y: event.target.y() }),
-  }
-  return <Group>{sticker.kind === 'image'
+  const common = { rotation:sticker.rotation, opacity:sticker.opacity }
+  return <Group
+    x={sticker.x}
+    y={sticker.y}
+    draggable
+    onClick={onSelect}
+    onTap={onSelect}
+    onDragStart={onSelect}
+    onDragEnd={(event) => onChange({ x:event.target.x(), y:event.target.y() })}
+  >{sticker.kind === 'image'
     ? <KonvaImage {...common} image={image} width={sticker.size} height={sticker.size} offsetX={sticker.size / 2} offsetY={sticker.size / 2}/>
     : <Text {...common} text={sticker.value} fontSize={sticker.size} offsetX={sticker.size / 2} offsetY={sticker.size / 2}/>
-  }{selected && <Circle x={sticker.x} y={sticker.y} radius={sticker.size * .62} stroke="#7c3aed" dash={[6, 5]} listening={false}/>}</Group>
+  }{selected && <>
+    <Circle radius={sticker.size * .62} stroke="#7c3aed" dash={[6, 5]} listening={false}/>
+    <Group
+      x={sticker.size * .44}
+      y={sticker.size * -.44}
+      onMouseDown={(event) => { event.cancelBubble = true }}
+      onTouchStart={(event) => { event.cancelBubble = true }}
+      onClick={(event) => { event.cancelBubble = true; onDelete() }}
+      onTap={(event) => { event.cancelBubble = true; onDelete() }}
+      onMouseEnter={(event) => { event.target.getStage()?.container().style.setProperty('cursor', 'pointer') }}
+      onMouseLeave={(event) => { event.target.getStage()?.container().style.removeProperty('cursor') }}
+    >
+      <Circle radius={11} fill="#ef4444" stroke="#ffffff" strokeWidth={2} shadowColor="#111827" shadowOpacity={.25} shadowBlur={5}/>
+      <Text x={-11} y={-11} width={22} height={22} text="×" align="center" verticalAlign="middle" fontSize={17} fontStyle="bold" fill="#ffffff" listening={false}/>
+    </Group>
+  </>}</Group>
 }
 
 export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage({
   document, viewScale, selected, showSafeArea, onSelect, onPhotoChange, onTextChange,
-  onTextDelete, onStickerChange, onRequestUpload, onFilesDropped,
+  onTextDelete, onStickerChange, onStickerDelete, onRequestUpload, onFilesDropped,
 }, ref) {
   const stageRef = useRef<Konva.Stage>(null)
   const hoverIndex = useRef<number | null>(null)
@@ -326,7 +347,7 @@ export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage(
               </Group>
             </>}
           </Group>)}
-          {document.stickers.map((sticker) => <StickerNode key={sticker.id} sticker={sticker} selected={selected?.type === 'sticker' && selected.id === sticker.id} onSelect={() => onSelect({ type:'sticker', id:sticker.id })} onChange={(patch) => onStickerChange(sticker.id, patch)}/>)}
+          {document.stickers.map((sticker) => <StickerNode key={sticker.id} sticker={sticker} selected={selected?.type === 'sticker' && selected.id === sticker.id} onSelect={() => onSelect({ type:'sticker', id:sticker.id })} onChange={(patch) => onStickerChange(sticker.id, patch)} onDelete={() => onStickerDelete(sticker.id)}/>)}
           {showSafeArea && <Rect x={18} y={18} width={artboard.width - 36} height={artboard.height - 36} stroke="#ef4444" strokeWidth={1} dash={[8,6]} opacity={.75} listening={false}/>} 
         </Layer>
       </Stage>
