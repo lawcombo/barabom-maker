@@ -12,10 +12,10 @@ export function FontPicker({ family, onChange }: { family: string; onChange: (fa
     </div>
     <div className="studio-font-options">
       {studioFonts.map((font) => (
-        <button key={font.family} type="button" aria-pressed={family === font.family} aria-label={font.label}
+        <button key={font.family} type="button" aria-pressed={family === font.family} aria-label={font.label} title={font.label}
           onClick={() => onChange(font.family)}>
           <span className="studio-font-sample" style={{ fontFamily: studioFontStack(font.family) }}>
-            {font.sample ?? '바라봄 한글'}
+            {font.sample ?? '바라봄 글'}
           </span>
           <small>{font.label}</small>
         </button>

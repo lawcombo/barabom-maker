@@ -68,11 +68,10 @@
 }
 
 .studio-font-options small {
-  overflow: hidden;
   color: #526177;
   font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 820px) {
