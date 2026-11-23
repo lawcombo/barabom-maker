@@ -13,10 +13,4 @@ export function downloadDataUrl(url: string, filename: string) {
   anchor.click()
 }
 
-export const posterFonts = [
-  ['Noto Sans KR','기본 고딕'], ['Noto Serif KR','정갈한 명조'], ['Black Han Sans','강한 제목'],
-  ['Do Hyeon','포스터 고딕'], ['Jua','둥근 고딕'], ['Gaegu','귀여운 손글씨'],
-  ['Nanum Pen Script','펜 손글씨'], ['Nanum Brush Script','붓 손글씨'], ['Gowun Batang','감성 바탕'],
-] as const
-
 export const posterEmojis = ['✨','🎉','💛','❤️','⭐','🌸','🌿','🎂','☕','🍰','🍕','🎁','🎈','📣','🔥','✅','💎','🎵','📷','✈️','🏷️','💐','🎄','🧸']

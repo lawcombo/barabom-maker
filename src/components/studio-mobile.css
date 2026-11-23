@@ -1,5 +1,5 @@
 .studio-editor-body { position: relative; }
-.studio-settings-trigger, .studio-sheet-bar, .studio-compact-only { display: none; }
+.studio-settings-trigger, .studio-sheet-bar { display: none; }
 
 .studio-inline-editor {
   position: fixed;
@@ -96,8 +96,6 @@
   }
 
   .studio-settings-trigger[aria-expanded="true"] { background: #eee6fc; }
-  .studio-inspector .studio-compact-only { display: block; }
-  .studio-inspector .studio-desktop-only { display: none; }
   .studio-inspector .studio-text-properties { display: flex; flex-direction: column; }
   .studio-inspector .studio-text-content { order: 1; margin-top: 12px; }
   .studio-inspector :is(input:not([type="range"]), textarea, select) { font-size: 16px; }

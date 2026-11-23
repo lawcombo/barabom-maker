@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import Konva from 'konva'
 import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva'
 import useImage from 'use-image'
+import { StudioCanvasText } from './StudioCanvasText'
 import { useTextCenterGuides } from './TextCenterGuides'
 import { ARTBOARD, getDesignedLayout, getLayoutRects, pointInPhotoSlot, scallopOutline } from '../data/layouts'
 import { templateById } from '../data/templates'
@@ -274,7 +275,7 @@ export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage(
       onSelect({ type:'caption', id:field })
       onEditCaption?.(field, event.target)
     }
-    return <Text {...caption} text={value} align={caption.align ?? 'center'} fontStyle={fontStyle}
+    return <StudioCanvasText {...caption} text={value} align={caption.align ?? 'center'} fontStyle={fontStyle}
       fontFamily={style?.fontFamily ?? caption.fontFamily} fontSize={style?.fontSize ?? caption.fontSize}
       fill={style?.fill ?? template.colors[1]} lineHeight={lineHeight} letterSpacing={letterSpacing}
       listening={!exporting && Boolean(value)} onClick={selectCaption} onTap={selectCaption} />
@@ -417,7 +418,7 @@ export const CanvasStage = forwardRef<CanvasHandle, Props>(function CanvasStage(
             }}
           >
             {item.background !== 'transparent' && <Rect x={-6} y={-4} width={item.width + 12} height={item.fontSize * item.lineHeight + 8} fill={item.background} cornerRadius={4}/>}
-            <Text
+            <StudioCanvasText
               text={item.text} x={0} y={0} width={item.width} fontFamily={item.fontFamily} fontSize={item.fontSize}
               fontStyle={item.fontStyle} fill={item.fill} align={item.align} letterSpacing={item.letterSpacing} lineHeight={item.lineHeight}
               opacity={item.opacity} stroke={item.stroke} strokeWidth={item.strokeWidth}

@@ -4,6 +4,7 @@ import Konva from 'konva'
 import { Arrow, Circle, Group, Image as KonvaImage, Layer, Line, Rect, Shape, Stage, Text, Transformer } from 'react-konva'
 import useImage from 'use-image'
 import { useTextCenterGuides } from '../../components/TextCenterGuides'
+import { StudioCanvasText } from '../../components/StudioCanvasText'
 import { PHOTO_ZOOM, zoomFromWheel } from '../../lib/photoZoom'
 import type { PosterCanvasHandle, PosterDocument, PosterElement, PosterImageElement, PosterTextElement } from './types'
 import { clampSlotPhotoOffset, findPhotoSlotAt } from './photoSlots'
@@ -200,7 +201,7 @@ function ElementNode({ element, selected, exporting, onSelect, onEditText, tapTo
       {element.kind==='image'&&<ImageContent element={element} selected={selected} exporting={exporting} onSelect={onSelect} onChange={onChange}/>}
       {element.kind==='text'&&<>
         {element.background!=='transparent'&&<Rect x={-element.width/2} y={-element.height/2} width={element.width} height={element.height} fill={element.background} cornerRadius={8}/>} 
-        <Text x={-element.width/2} y={-element.height/2} width={element.width} height={element.height} text={element.text} fontFamily={element.fontFamily} fontSize={element.fontSize} fontStyle={element.fontStyle} fill={element.fill} align={element.align} verticalAlign="middle" letterSpacing={element.letterSpacing} lineHeight={element.lineHeight} stroke={element.stroke} strokeWidth={element.strokeWidth} shadowColor={element.shadowColor} shadowBlur={element.shadowBlur} textDecoration={element.underline?'underline':''}/>
+        <StudioCanvasText x={-element.width/2} y={-element.height/2} width={element.width} height={element.height} text={element.text} fontFamily={element.fontFamily} fontSize={element.fontSize} fontStyle={element.fontStyle} fill={element.fill} align={element.align} verticalAlign="middle" letterSpacing={element.letterSpacing} lineHeight={element.lineHeight} stroke={element.stroke} strokeWidth={element.strokeWidth} shadowColor={element.shadowColor} shadowBlur={element.shadowBlur} textDecoration={element.underline?'underline':''}/>
       </>}
       {element.kind==='sticker'&&(element.stickerType==='emoji'
         ? <Text ref={(node)=>{if(node){node.offsetX(node.width()/2);node.offsetY(node.height()/2)}}} text={element.value} fontSize={Math.min(element.width,element.height)} />

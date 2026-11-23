@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { CanvasStage, type CanvasHandle } from './CanvasStage'
 import { FourcutTemplateCard } from './FourcutTemplateCard'
+import { FontPicker } from './FontPicker'
 import { StudioHeaderActions } from './StudioHeaderActions'
 import { StudioInspector, studioPhoneLayout, useCanvasTextEdit } from './StudioMobileControls'
 import { ARTBOARD, getDesignedLayout, layoutLabel } from '../data/layouts'
@@ -24,20 +25,6 @@ const tabs: Array<{ id: ToolTab; label: string; icon: typeof LayoutGrid }> = [
   { id:'projects', label:'프로젝트', icon:FolderOpen },
 ]
 
-const fonts = [
-  { family:'Noto Sans KR', label:'노토 고딕', sample:'깔끔한 오늘' },
-  { family:'Noto Serif KR', label:'노토 명조', sample:'감성적인 순간' },
-  { family:'Gowun Batang', label:'고운 바탕', sample:'차분한 기억' },
-  { family:'Black Han Sans', label:'검은 고딕', sample:'강렬한 제목' },
-  { family:'Do Hyeon', label:'도현체', sample:'또렷한 하루' },
-  { family:'Jua', label:'주아체', sample:'귀여운 추억' },
-  { family:'Gaegu', label:'개구체', sample:'우리들의 사진' },
-  { family:'Hi Melody', label:'하이 멜로디', sample:'말랑한 마음' },
-  { family:'Nanum Pen Script', label:'나눔 펜', sample:'손으로 쓴 편지' },
-  { family:'Nanum Brush Script', label:'나눔 붓글씨', sample:'멋진 한마디' },
-  { family:'Arial', label:'Arial', sample:'SIMPLE DAY' },
-  { family:'Georgia', label:'Georgia', sample:'Classic Moment' },
-]
 const stickerCategories = [
   { id:'hearts', label:'하트', items:['♥','♡','❤','🩷','🧡','💛','💚','🩵','💙','💜','🤍','🖤','💖','💕','💞','💘'] },
   { id:'sparkles', label:'별·반짝', items:['★','☆','✦','✧','✨','🌟','⭐','💫','⚡','☀️','🌙','☁️','🌈','🔥','💎','🪄'] },
@@ -370,23 +357,6 @@ export function Editor({ onExit }: { onExit: (hasUnsavedChanges: boolean) => voi
     return <><SectionTitle title="내 프로젝트" description="헤더의 저장 버튼을 누르면 이 브라우저에 저장돼요."/><button className="primary-btn w-full" onClick={startNewProject}><Plus size={17}/> 새 프로젝트</button><div className="mt-4 space-y-2">{projects.map(project=><div key={project.id} className="project-row"><button onClick={async()=>{ setMobilePanel(false); const loaded=await loadProject(project.id); if(loaded)openProject(loaded,true)}}><strong>{project.name}</strong><small>{new Date(project.updatedAt).toLocaleString('ko-KR')}</small></button><IconButton label="삭제" onClick={async()=>{await deleteProject(project.id);setProjects(await listProjects())}}><Trash2 size={15}/></IconButton></div>)}</div><div className="mt-5 grid grid-cols-2 gap-2"><button className="secondary-btn" onClick={()=>exportProjectFile(document)}><ArrowDownToLine size={15}/> 내보내기</button><button className="secondary-btn" onClick={()=>projectInputRef.current?.click()}><Upload size={15}/> 가져오기</button></div></>
   }
 
-  const fontChoices = (family: string, onChange: (family: string) => void) => <>
-    <label className="studio-compact-only field-label mt-3">글꼴
-      <select className="text-input" value={family} onChange={(event) => onChange(event.target.value)}>
-        {fonts.map((font) => <option key={font.family} value={font.family}>{font.label}</option>)}
-      </select>
-    </label>
-    <div className="studio-desktop-only">
-      <p className="field-label mt-5">글꼴</p>
-      <div className="mt-2 grid grid-cols-2 gap-2">
-        {fonts.map((font) => <button key={font.family} type="button" onClick={() => onChange(font.family)}
-          className={`font-choice ${font.family === family ? 'active' : ''}`} style={{fontFamily:font.family}}>
-          <strong>{font.sample}</strong><small>{font.label}</small>
-        </button>)}
-      </div>
-    </div>
-  </>
-
   const renderInspector = () => {
     if (selectedCaption) {
       const isTitle = selectedCaption === 'topCaption'
@@ -399,8 +369,8 @@ export function Editor({ onExit }: { onExit: (hasUnsavedChanges: boolean) => voi
             <textarea className="text-input" value={document.frame[selectedCaption]}
               onChange={(event) => updateFrame({ [selectedCaption]:event.target.value })} />
           </label>
-          {fontChoices(style?.fontFamily ?? caption?.fontFamily ?? (isTitle ? 'Noto Sans KR' : 'Gaegu'),
-            (fontFamily) => updateCaptionStyle(selectedCaption, { fontFamily }))}
+          <FontPicker family={style?.fontFamily ?? caption?.fontFamily ?? (isTitle ? 'Noto Sans KR' : 'Gaegu')}
+            onChange={(fontFamily) => updateCaptionStyle(selectedCaption, { fontFamily })} />
           <div className="mt-4"><Range label="글자 크기" value={style?.fontSize ?? caption?.fontSize ?? fallbackSize}
             min={10} max={100} suffix="px" onChange={(fontSize) => updateCaptionStyle(selectedCaption, { fontSize })} /></div>
           <label className="color-field mt-3">글자색
@@ -414,7 +384,7 @@ export function Editor({ onExit }: { onExit: (hasUnsavedChanges: boolean) => voi
     if (selectedText) return <><SectionTitle title="텍스트 편집"/><div className="studio-text-properties">
       <label className="studio-text-content field-label">내용<textarea className="text-input min-h-24 resize-y" value={selectedText.text}
         onChange={e=>updateText(selectedText.id,{text:e.target.value})}/></label>
-      {fontChoices(selectedText.fontFamily, (fontFamily) => updateText(selectedText.id, {fontFamily}))}<div className="mt-5 space-y-5"><Range label="글자 크기" value={selectedText.fontSize} min={10} max={120} suffix="px" onChange={fontSize=>updateText(selectedText.id,{fontSize})}/><Range label="자간" value={selectedText.letterSpacing} min={-3} max={20} suffix="px" onChange={letterSpacing=>updateText(selectedText.id,{letterSpacing})}/><Range label="줄 간격" value={selectedText.lineHeight} min={.8} max={3} step={.1} onChange={lineHeight=>updateText(selectedText.id,{lineHeight})}/><Range label="회전" value={selectedText.rotation} min={-180} max={180} suffix="°" onChange={rotation=>updateText(selectedText.id,{rotation})}/><Range label="투명도" value={selectedText.opacity} min={.1} max={1} step={.01} onChange={opacity=>updateText(selectedText.id,{opacity})}/></div><div className="mt-5 grid grid-cols-2 gap-3"><label className="color-field compact">글자<input type="color" value={selectedText.fill} onChange={e=>updateText(selectedText.id,{fill:e.target.value})}/></label><label className="color-field compact">테두리<input type="color" value={selectedText.stroke==='transparent'?'#ffffff':selectedText.stroke} onChange={e=>updateText(selectedText.id,{stroke:e.target.value,strokeWidth:1})}/></label></div><div className="mt-5 grid grid-cols-2 gap-2"><button className="secondary-btn" onClick={duplicateSelected}><Copy size={15}/> 복제</button><button className="danger-btn" onClick={deleteSelected}><Trash2 size={15}/> 삭제</button></div></div></>
+      <FontPicker family={selectedText.fontFamily} onChange={(fontFamily) => updateText(selectedText.id, {fontFamily})} /><div className="mt-5 space-y-5"><Range label="글자 크기" value={selectedText.fontSize} min={10} max={120} suffix="px" onChange={fontSize=>updateText(selectedText.id,{fontSize})}/><Range label="자간" value={selectedText.letterSpacing} min={-3} max={20} suffix="px" onChange={letterSpacing=>updateText(selectedText.id,{letterSpacing})}/><Range label="줄 간격" value={selectedText.lineHeight} min={.8} max={3} step={.1} onChange={lineHeight=>updateText(selectedText.id,{lineHeight})}/><Range label="회전" value={selectedText.rotation} min={-180} max={180} suffix="°" onChange={rotation=>updateText(selectedText.id,{rotation})}/><Range label="투명도" value={selectedText.opacity} min={.1} max={1} step={.01} onChange={opacity=>updateText(selectedText.id,{opacity})}/></div><div className="mt-5 grid grid-cols-2 gap-3"><label className="color-field compact">글자<input type="color" value={selectedText.fill} onChange={e=>updateText(selectedText.id,{fill:e.target.value})}/></label><label className="color-field compact">테두리<input type="color" value={selectedText.stroke==='transparent'?'#ffffff':selectedText.stroke} onChange={e=>updateText(selectedText.id,{stroke:e.target.value,strokeWidth:1})}/></label></div><div className="mt-5 grid grid-cols-2 gap-2"><button className="secondary-btn" onClick={duplicateSelected}><Copy size={15}/> 복제</button><button className="danger-btn" onClick={deleteSelected}><Trash2 size={15}/> 삭제</button></div></div></>
     if (selectedSticker) return <><SectionTitle title="스티커 편집"/><div className="space-y-5"><Range label="크기" value={selectedSticker.size} min={16} max={220} suffix="px" onChange={size=>updateSticker(selectedSticker.id,{size})}/><Range label="회전" value={selectedSticker.rotation} min={-180} max={180} suffix="°" onChange={rotation=>updateSticker(selectedSticker.id,{rotation})}/><Range label="투명도" value={selectedSticker.opacity} min={.1} max={1} step={.01} onChange={opacity=>updateSticker(selectedSticker.id,{opacity})}/></div><div className="mt-5 grid grid-cols-2 gap-2"><button className="secondary-btn" onClick={duplicateSelected}><Copy size={15}/> 복제</button><button className="danger-btn" onClick={deleteSelected}><Trash2 size={15}/> 삭제</button></div></>
     return <><SectionTitle title="프레임 설정" description="요소를 선택하면 상세 설정이 표시됩니다."/><div className="summary-card"><Frame/><div><strong>{designedLayout?.label ?? layoutLabel(document.cutCount,document.orientation)}</strong><small>{templateById(document.templateId).name}</small></div></div><button className="secondary-btn mt-4 w-full" onClick={()=>{setTab('background');setInspectorOpen(false);setMobilePanel(true)}}><Palette size={15}/> 프레임 꾸미기</button><label className="toggle-row mt-5"><span>인쇄 안전 영역</span><input type="checkbox" checked={showSafeArea} onChange={e=>setShowSafeArea(e.target.checked)}/></label></>
   }
